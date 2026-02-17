@@ -2,9 +2,7 @@ package dev.jaysce.jukeboxkt.model
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class TrackTest {
   @Test
@@ -13,7 +11,6 @@ class TrackTest {
     assertEquals("", track.title)
     assertEquals("", track.artist)
     assertEquals("", track.album)
-    assertFalse(track.loved)
     assertNull(track.albumArt)
   }
 
@@ -23,12 +20,10 @@ class TrackTest {
       title = "Song",
       artist = "Artist",
       album = "Album",
-      loved = true,
     )
     assertEquals("Song", track.title)
     assertEquals("Artist", track.artist)
     assertEquals("Album", track.album)
-    assertTrue(track.loved)
   }
 
   @Test
@@ -49,10 +44,9 @@ class TrackTest {
   @Test
   fun immutabilityCopy() {
     val track = Track()
-    val updated = track.copy(title = "Updated", artist = "Updated Artist", loved = true)
+    val updated = track.copy(title = "Updated", artist = "Updated Artist")
     assertEquals("Updated", updated.title)
     assertEquals("Updated Artist", updated.artist)
-    assertTrue(updated.loved)
     // 원본은 불변
     assertEquals("", track.title)
   }
