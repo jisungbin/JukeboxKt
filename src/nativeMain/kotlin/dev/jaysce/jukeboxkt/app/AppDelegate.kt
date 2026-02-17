@@ -9,14 +9,14 @@ import dev.jaysce.jukeboxkt.view.OnboardingContentView
 import dev.jaysce.jukeboxkt.view.PreferencesContentView
 import dev.jaysce.jukeboxkt.view.StatusBarAnimation
 import dev.jaysce.jukeboxkt.viewmodel.ContentViewModel
-import dev.jaysce.jukeboxkt.window.OnboardingWindow
-import dev.jaysce.jukeboxkt.window.PreferencesWindow
 import kotlinx.cinterop.ObjCAction
 import kotlinx.cinterop.useContents
 import platform.AppKit.NSApp
 import platform.AppKit.NSApplication
 import platform.AppKit.NSApplicationDelegateProtocol
+import platform.AppKit.NSBackingStoreBuffered
 import platform.AppKit.NSEventTypeRightMouseUp
+import platform.AppKit.NSFloatingWindowLevel
 import platform.AppKit.NSMenu
 import platform.AppKit.NSMenuDelegateProtocol
 import platform.AppKit.NSMenuItem
@@ -26,6 +26,9 @@ import platform.AppKit.NSStatusBar
 import platform.AppKit.NSStatusBarButton
 import platform.AppKit.NSStatusItem
 import platform.AppKit.NSViewController
+import platform.AppKit.NSWindow
+import platform.AppKit.NSWindowStyleMaskFullSizeContentView
+import platform.AppKit.NSWindowStyleMaskTitled
 import platform.AppKit.currentEvent
 import platform.Foundation.NSDate
 import platform.Foundation.NSMakeRect
@@ -38,7 +41,7 @@ import platform.Foundation.NSUserDefaults
 import platform.Foundation.timeIntervalSince1970
 import platform.darwin.NSObject
 
-class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegateProtocol {
+public class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegateProtocol {
 
   private val defaults = NSUserDefaults.standardUserDefaults
   private val viewModel = ContentViewModel()
@@ -46,15 +49,15 @@ class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegatePro
   private var statusBarItem: NSStatusItem? = null
   private var statusBarMenu: NSMenu? = null
   private var popover: NSPopover? = null
-  private var preferencesWindow: PreferencesWindow? = null
-  private var onboardingWindow: OnboardingWindow? = null
+  private var barAnimation: StatusBarAnimation? = null
+  private var marqueeText: MenuMarqueeText? = null
+  private var preferencesWindow: NSWindow? = null
+  private var onboardingWindow: NSWindow? = null
 
-  private var trackChangedObserver: Any? = null
-  private var popoverCloseObserver: Any? = null
   private var lastPopoverCloseTime: Double = 0.0
 
   override fun applicationDidFinishLaunching(notification: NSNotification) {
-    trackChangedObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+    NSNotificationCenter.defaultCenter.addObserverForName(
       name = "TrackChanged",
       `object` = null,
       queue = NSOperationQueue.mainQueue,
@@ -84,7 +87,7 @@ class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegatePro
       }
     }
 
-    popoverCloseObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+    NSNotificationCenter.defaultCenter.addObserverForName(
       name = "NSPopoverDidCloseNotification",
       `object` = popover,
       queue = NSOperationQueue.mainQueue,
@@ -120,24 +123,26 @@ class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegatePro
     statusBarItem = NSStatusBar.systemStatusBar.statusItemWithLength(-1.0)
 
     statusBarItem?.button?.let { button ->
-      val barAnimation = StatusBarAnimation(
+      val anim = StatusBarAnimation(
         menubarAppearance = button.effectiveAppearance,
         menubarHeight = button.bounds.useContents { size.height },
         isPlaying = false,
       )
-      button.addSubview(barAnimation)
+      barAnimation = anim
+      button.addSubview(anim)
 
-      val marqueeText = MenuMarqueeText(
+      val text = MenuMarqueeText(
         text = "",
         menubarBounds = button.bounds,
         menubarAppearance = button.effectiveAppearance,
       )
-      button.addSubview(marqueeText)
+      marqueeText = text
+      button.addSubview(text)
 
-      val animWidth = barAnimation.bounds.useContents { size.width }
+      val animWidth = anim.bounds.useContents { size.width }
       val buttonHeight = button.bounds.useContents { size.height }
       button.frame = NSMakeRect(0.0, 0.0, animWidth + 16, buttonHeight)
-      marqueeText.menubarBounds = button.bounds
+      text.menubarBounds = button.bounds
 
       button.target = this
       button.action = NSSelectorFromString("didClickStatusBarItem:")
@@ -147,7 +152,7 @@ class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegatePro
   }
 
   @ObjCAction
-  fun didClickStatusBarItem(sender: NSObject?) {
+  public fun didClickStatusBarItem(sender: NSObject?) {
     val event = NSApp?.currentEvent ?: return
     if (event.type == NSEventTypeRightMouseUp) {
       statusBarItem?.menu = statusBarMenu
@@ -183,8 +188,8 @@ class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegatePro
     val titleAndArtist = if (trackTitle.isEmpty() && trackArtist.isEmpty()) "" else "$trackTitle \u2022 $trackArtist"
 
     val button = statusBarItem?.button ?: return
-    val barAnimation = button.subviews.getOrNull(0) as? StatusBarAnimation ?: return
-    val marqueeText = button.subviews.getOrNull(1) as? MenuMarqueeText ?: return
+    val barAnimation = this.barAnimation ?: return
+    val marqueeText = this.marqueeText ?: return
 
     val font = Constants.StatusBar.marqueeFont
     val stringWidth = titleAndArtist.stringWidth(font)
@@ -213,10 +218,11 @@ class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegatePro
   }
 
   @ObjCAction
-  fun showPreferences(sender: NSObject?) {
+  public fun showPreferences(sender: NSObject?) {
     if (preferencesWindow == null) {
-      preferencesWindow = PreferencesWindow()
-      preferencesWindow!!.contentView = PreferencesContentView(preferencesWindow!!)
+      val window = createFloatingWindow(400.0, 164.0)
+      window.contentView = PreferencesContentView(window)
+      preferencesWindow = window
     }
     preferencesWindow!!.center()
     preferencesWindow!!.makeKeyAndOrderFront(null)
@@ -225,9 +231,8 @@ class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegatePro
 
   private fun showOnboarding() {
     if (onboardingWindow == null) {
-      onboardingWindow = OnboardingWindow()
-      onboardingWindow!!.contentView = OnboardingContentView {
-        finishOnboarding()
+      onboardingWindow = createFloatingWindow(500.0, 200.0).apply {
+        contentView = OnboardingContentView { finishOnboarding() }
       }
     }
     onboardingWindow!!.center()
@@ -242,4 +247,17 @@ class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegatePro
     onboardingWindow?.close()
     onboardingWindow = null
   }
+
+  private fun createFloatingWindow(width: Double, height: Double): NSWindow =
+    NSWindow(
+      contentRect = NSMakeRect(0.0, 0.0, width, height),
+      styleMask = NSWindowStyleMaskTitled or NSWindowStyleMaskFullSizeContentView,
+      backing = NSBackingStoreBuffered,
+      `defer` = true,
+    ).apply {
+      level = NSFloatingWindowLevel
+      titlebarAppearsTransparent = true
+      setMovableByWindowBackground(true)
+      setReleasedWhenClosed(false)
+    }
 }
