@@ -1,2 +1,6 @@
-
+.DS_Store
+.gradle/
+.idea/
+.kotlin/
+build/
 Jukebox/Secrets.plist

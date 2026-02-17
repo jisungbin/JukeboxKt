@@ -1,0 +1,16 @@
+language = Objective-C
+package = ScriptingBridge
+linkerOpts = -framework ScriptingBridge
+
+---
+
+#import <AppKit/AppKit.h>
+
+@interface SBObject : NSObject
+- (id)valueForKey:(NSString *)key;
+@end
+
+@interface SBApplication : SBObject
++ (instancetype)applicationWithBundleIdentifier:(NSString *)ident;
+- (BOOL)isRunning;
+@end

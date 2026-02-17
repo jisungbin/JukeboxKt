@@ -1,0 +1,20 @@
+language = Objective-C
+package = DistributedNotificationHelper
+
+---
+
+#import <Foundation/Foundation.h>
+
+static inline void JBAddDistributedNotificationObserverWithDeliverImmediately(
+    id observer,
+    SEL selector,
+    NSNotificationName _Nullable name,
+    NSString * _Nullable object
+) {
+    [[NSDistributedNotificationCenter defaultCenter]
+        addObserver:observer
+           selector:selector
+               name:name
+             object:object
+ suspensionBehavior:NSNotificationSuspensionBehaviorDeliverImmediately];
+}
