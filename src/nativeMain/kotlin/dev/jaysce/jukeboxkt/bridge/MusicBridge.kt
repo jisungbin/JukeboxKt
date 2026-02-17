@@ -24,7 +24,6 @@ import platform.Foundation.NSJSONSerialization
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSString
 import platform.Foundation.NSTemporaryDirectory
-import platform.Foundation.NSURL
 import platform.Foundation.NSURLComponents
 import platform.Foundation.NSURLQueryItem
 import platform.Foundation.NSUTF8StringEncoding
@@ -42,9 +41,12 @@ public class MusicBridge {
   private val bundleId = Constants.AppleMusic.bundleID
 
   private val artworkCacheDir: String by lazy {
-    val cachesDir = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, true)
-      .firstOrNull() as? String ?: NSTemporaryDirectory()
-    val dir = "$cachesDir/dev.jaysce.jukebox.kt/artwork"
+    val cachesDir =
+      NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, expandTilde = true)
+        .firstOrNull() as? String
+        ?: NSTemporaryDirectory()
+    val dir = "$cachesDir/dev.jaysce.jukeboxkt/artwork"
+
     NSFileManager.defaultManager.createDirectoryAtPath(dir, withIntermediateDirectories = true, attributes = null, error = null)
     dir
   }
@@ -65,6 +67,7 @@ public class MusicBridge {
 
     val parts = result.split("|||")
     if (parts.size < 3) return null
+
     return Track(title = parts[0], artist = parts[1], album = parts[2])
   }
 
@@ -75,7 +78,7 @@ public class MusicBridge {
     executeScript("""tell application "Music" to return player position""")?.toDoubleOrNull() ?: 0.0
 
   public fun isPlaying(): Boolean =
-    executeScriptRaw("""tell application "Music" to return player state is playing""")?.booleanValue ?: false
+    executeScriptRaw("""tell application "Music" to return player state is playing""").booleanValue
 
   public fun playPause() {
     executeScript("""tell application "Music" to playpause""")
@@ -94,7 +97,7 @@ public class MusicBridge {
   }
 
   public fun isFavorited(): Boolean =
-    executeScriptRaw("""tell application "Music" to return favorited of current track""")?.booleanValue ?: false
+    executeScriptRaw("""tell application "Music" to return favorited of current track""").booleanValue
 
   public fun getAlbumArtwork(): NSImage? {
     // Primary: AppleScript raw data → temp file → NSImage (비라이브러리 트랙에서도 동작)
@@ -131,15 +134,20 @@ public class MusicBridge {
   private fun getAlbumArtworkViaSB(): NSImage? {
     val app = SBApplication.applicationWithBundleIdentifier(bundleId) ?: return null
     val currentTrack = app.valueForKey("currentTrack") as? SBObject ?: return null
+
     val artworks = currentTrack.valueForKey("artworks") as? NSArray ?: return null
     if (artworks.count.toInt() == 0) return null
     val artwork = artworks.objectAtIndex(0u) as? SBObject ?: return null
-    val dataObj = artwork.valueForKey("data")
 
-    (dataObj as? NSImage)?.let { return it }
-    (dataObj as? NSAppleEventDescriptor)?.data?.let { return NSImage(data = it) }
-    (dataObj as? NSData)?.let { return NSImage(data = it) }
-    (artwork.valueForKey("rawData") as? NSData)?.let { return NSImage(data = it) }
+    when (val dataObj = artwork.valueForKey("data")) {
+      is NSImage -> return dataObj
+      is NSAppleEventDescriptor -> return NSImage(data = dataObj.data)
+      is NSData -> return NSImage(data = dataObj)
+    }
+
+    val rawData = artwork.valueForKey("rawData")
+    if (rawData is NSData) return NSImage(data = rawData)
+
     return null
   }
 
@@ -150,8 +158,9 @@ public class MusicBridge {
     onResult: (NSImage?) -> Unit,
   ) {
     // 1. AppleScript + SB (라이브러리 트랙)
-    getAlbumArtwork()?.let {
-      onResult(it)
+    val artwork = getAlbumArtwork()
+    if (artwork != null) {
+      onResult(artwork)
       return
     }
 
@@ -159,8 +168,12 @@ public class MusicBridge {
     getAlbumArtworkViaITunesSearch(title, artist, album, onResult)
   }
 
-  // --- iTunes Search API를 통한 아트워크 (비라이브러리 스트리밍 트랙용, 인증 불필요) ---
-  private fun getAlbumArtworkViaITunesSearch(title: String, artist: String, album: String, onResult: (NSImage?) -> Unit) {
+  private fun getAlbumArtworkViaITunesSearch(
+    title: String,
+    artist: String,
+    album: String,
+    onResult: (NSImage?) -> Unit,
+  ) {
     if (title.isBlank() && artist.isBlank()) {
       onResult(null)
       return
@@ -177,7 +190,7 @@ public class MusicBridge {
       host = "itunes.apple.com"
       path = "/search"
       queryItems = listOf(
-        NSURLQueryItem(name = "term", value = listOf(title, artist, album).filter { it.isNotBlank() }.joinToString(" ")),
+        NSURLQueryItem(name = "term", value = listOf(title, artist, album).filter(String::isNotBlank).joinToString(" ")),
         NSURLQueryItem(name = "media", value = "music"),
         NSURLQueryItem(name = "entity", value = "musicTrack"),
         NSURLQueryItem(name = "limit", value = "3"),
@@ -188,7 +201,7 @@ public class MusicBridge {
       return
     }
 
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT.toLong(), 0uL)) {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT.toLong(), flags = 0uL)) {
       val json = shellExec("/usr/bin/curl -sf '$searchUrl'")
       if (json.isNullOrEmpty()) {
         dispatch_async(dispatch_get_main_queue()) { onResult(null) }
@@ -202,6 +215,7 @@ public class MusicBridge {
       }
 
       shellExec("/usr/bin/curl -sf -o '$cacheFile' '$artworkUrl'")
+
       val image = NSImage(contentsOfFile = cacheFile)
       dispatch_async(dispatch_get_main_queue()) { onResult(image) }
     }
@@ -210,17 +224,19 @@ public class MusicBridge {
   @Suppress("CAST_NEVER_SUCCEEDS")
   private fun parseArtworkUrlFromJson(json: String): String? {
     val data = (json as NSString).dataUsingEncoding(NSUTF8StringEncoding) ?: return null
-    val dict = try {
-      NSJSONSerialization.JSONObjectWithData(data, options = 0u, error = null) as? NSDictionary
-    } catch (_: Exception) {
-      null
-    } ?: return null
+    val dict = runCatching {
+      NSJSONSerialization.JSONObjectWithData(data, options = 0u, error = null) as NSDictionary
+    }
+      .getOrElse { return null }
+
     val results = dict.objectForKey("results") as? NSArray ?: return null
     if (results.count.toInt() == 0) return null
+
     val first = results.objectAtIndex(0u) as? NSDictionary ?: return null
-    val artworkUrl100 = first.objectForKey("artworkUrl100") as? String ?: return null
+    val artworkUrl = first.objectForKey("artworkUrl100") as? String ?: return null
+
     // 100x100 → 600x600 고해상도
-    return artworkUrl100.replace("100x100bb", "600x600bb")
+    return artworkUrl.replace("100x100bb", "600x600bb")
   }
 
   private fun shellExec(command: String): String? {
@@ -232,19 +248,19 @@ public class MusicBridge {
         while (fgets(buf, 4096, fp) != null) {
           sb.append(buf.toKString())
         }
-        sb.toString().trim().ifEmpty { null }
+        sb.toString().trim().takeIf(String::isNotEmpty)
       }
     } finally {
       pclose(fp)
     }
   }
 
-  private fun executeScript(source: String): String? =
-    executeScriptRaw(source)?.stringValue
+  private fun executeScript(source: String): String? = executeScriptRaw(source).stringValue
 
-  private fun executeScriptRaw(source: String): NSAppleEventDescriptor? = memScoped {
-    val errorInfo = alloc<ObjCObjectVar<Map<Any?, *>?>>()
-    val script = NSAppleScript(source = source)
-    script.executeAndReturnError(errorInfo.ptr)
-  }
+  private fun executeScriptRaw(source: String): NSAppleEventDescriptor =
+    memScoped {
+      val errorInfo = alloc<ObjCObjectVar<Map<Any?, *>?>>()
+      val script = NSAppleScript(source = source)
+      script.executeAndReturnError(errorInfo.ptr)
+    }
 }
