@@ -5,8 +5,8 @@ import platform.AppKit.NSAppearance
 import platform.AppKit.NSAppearanceNameVibrantDark
 import platform.AppKit.NSAppearanceNameVibrantLight
 import platform.AppKit.NSColor
-import platform.AppKit.NSView
 import platform.AppKit.NSScreen
+import platform.AppKit.NSView
 import platform.CoreGraphics.CGPointMake
 import platform.CoreGraphics.CGRectMake
 import platform.Foundation.NSNumber
@@ -15,7 +15,7 @@ import platform.QuartzCore.CACurrentMediaTime
 import platform.QuartzCore.CALayer
 import platform.QuartzCore.kCACornerCurveContinuous
 
-class StatusBarAnimation(
+public class StatusBarAnimation(
   menubarAppearance: NSAppearance,
   private val menubarHeight: Double,
   isPlaying: Boolean,
@@ -27,7 +27,7 @@ class StatusBarAnimation(
     menubarHeight,
   ),
 ) {
-  var menubarIsDarkAppearance: Boolean = menubarAppearance.bestMatchFromAppearancesWithNames(
+  public var menubarIsDarkAppearance: Boolean = menubarAppearance.bestMatchFromAppearancesWithNames(
     listOf(NSAppearanceNameVibrantDark, NSAppearanceNameVibrantLight),
   ) == NSAppearanceNameVibrantDark
     set(value) {
@@ -42,7 +42,7 @@ class StatusBarAnimation(
     ) == NSAppearanceNameVibrantDark
   }
 
-  var isPlaying: Boolean = isPlaying
+  public var isPlaying: Boolean = isPlaying
     set(value) {
       field = value
       animate()
@@ -73,11 +73,14 @@ class StatusBarAnimation(
     }
   }
 
-  fun animate() {
+  public fun animate() {
     layer?.sublayers?.toList()?.forEach { (it as CALayer).removeFromSuperlayer() }
     bars.clear()
 
     for (i in barHeights.indices) {
+      // Paused state: 처음 2개의 바만 정적으로 표시
+      if (!isPlaying && i >= 2) break
+
       val bar = CALayer().apply {
         NSScreen.mainScreen?.backingScaleFactor?.let { contentsScale = it }
         backgroundColor = this@StatusBarAnimation.backgroundColor
@@ -93,8 +96,7 @@ class StatusBarAnimation(
       }
       layer?.addSublayer(bar)
 
-      if (!this.isPlaying && i == 1) return
-      if (!this.isPlaying) continue
+      if (!isPlaying) continue
 
       val animation = CABasicAnimation.animationWithKeyPath("bounds.size.height").apply {
         fromValue = NSNumber(double = barHeights[i])
