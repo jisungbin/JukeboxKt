@@ -4,41 +4,41 @@ import ScriptingBridge.SBApplication
 import ScriptingBridge.SBObject
 import dev.jaysce.jukeboxkt.model.Track
 import dev.jaysce.jukeboxkt.util.Constants
+import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.toKString
 import platform.AppKit.NSImage
 import platform.AppKit.NSRunningApplication
 import platform.Foundation.NSAppleEventDescriptor
 import platform.Foundation.NSAppleScript
 import platform.Foundation.NSArray
-import platform.Foundation.NSData
 import platform.Foundation.NSCachesDirectory
-import platform.Foundation.NSFileManager
+import platform.Foundation.NSData
 import platform.Foundation.NSDictionary
+import platform.Foundation.NSFileManager
 import platform.Foundation.NSJSONSerialization
-import platform.Foundation.NSURL
-import platform.Foundation.NSURLComponents
-import platform.Foundation.NSURLQueryItem
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSString
 import platform.Foundation.NSTemporaryDirectory
+import platform.Foundation.NSURL
+import platform.Foundation.NSURLComponents
+import platform.Foundation.NSURLQueryItem
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.NSUserDomainMask
 import platform.Foundation.dataUsingEncoding
-import kotlinx.cinterop.ByteVar
-import kotlinx.cinterop.allocArray
-import kotlinx.cinterop.toKString
-import platform.posix.fgets
-import platform.posix.pclose
-import platform.posix.popen
 import platform.darwin.DISPATCH_QUEUE_PRIORITY_DEFAULT
 import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_global_queue
 import platform.darwin.dispatch_get_main_queue
+import platform.posix.fgets
+import platform.posix.pclose
+import platform.posix.popen
 
-class MusicBridge {
+public class MusicBridge {
   private val bundleId = Constants.AppleMusic.bundleID
 
   private val artworkCacheDir: String by lazy {
@@ -49,14 +49,11 @@ class MusicBridge {
     dir
   }
 
-  val isRunning: Boolean
+  public val isRunning: Boolean
     get() = NSRunningApplication.runningApplicationsWithBundleIdentifier(bundleId).isNotEmpty()
 
-  fun getCurrentTrack(): Track? {
-    if (!isRunning) {
-      println("[Jukebox] getCurrentTrack: Music not running")
-      return null
-    }
+  public fun getCurrentTrack(): Track? {
+    if (!isRunning) return null
     val result = executeScript(
       """
             tell application "Music"
@@ -67,57 +64,39 @@ class MusicBridge {
     ) ?: return null
 
     val parts = result.split("|||")
-    if (parts.size < 3) {
-      println("[Jukebox] getCurrentTrack: unexpected format — $result")
-      return null
-    }
-    val track = Track(title = parts[0], artist = parts[1], album = parts[2])
-    println("[Jukebox] getCurrentTrack: ${track.title} — ${track.artist} — ${track.album}")
-    return track
+    if (parts.size < 3) return null
+    return Track(title = parts[0], artist = parts[1], album = parts[2])
   }
 
-  fun getTrackDuration(): Double {
-    val duration = executeScript("""tell application "Music" to return duration of current track""")?.toDoubleOrNull() ?: 0.0
-    println("[Jukebox] getTrackDuration: $duration")
-    return duration
-  }
+  public fun getTrackDuration(): Double =
+    executeScript("""tell application "Music" to return duration of current track""")?.toDoubleOrNull() ?: 0.0
 
-  fun getPlayerPosition(): Double =
-    executeScript("""tell application "Music" to return player position""", silent = true)?.toDoubleOrNull() ?: 0.0
+  public fun getPlayerPosition(): Double =
+    executeScript("""tell application "Music" to return player position""")?.toDoubleOrNull() ?: 0.0
 
-  fun isPlaying(): Boolean {
-    val playing = executeScriptRaw("""tell application "Music" to return player state is playing""")?.booleanValue ?: false
-    println("[Jukebox] isPlaying: $playing")
-    return playing
-  }
+  public fun isPlaying(): Boolean =
+    executeScriptRaw("""tell application "Music" to return player state is playing""")?.booleanValue ?: false
 
-  fun playPause() {
-    println("[Jukebox] playPause")
+  public fun playPause() {
     executeScript("""tell application "Music" to playpause""")
   }
 
-  fun nextTrack() {
-    println("[Jukebox] nextTrack")
+  public fun nextTrack() {
     executeScript("""tell application "Music" to next track""")
   }
 
-  fun previousTrack() {
-    println("[Jukebox] previousTrack")
+  public fun previousTrack() {
     executeScript("""tell application "Music" to back track""")
   }
 
-  fun setFavorited(favorited: Boolean) {
-    println("[Jukebox] setFavorited: $favorited")
+  public fun setFavorited(favorited: Boolean) {
     executeScript("""tell application "Music" to set favorited of current track to $favorited""")
   }
 
-  fun isFavorited(): Boolean {
-    val favorited = executeScriptRaw("""tell application "Music" to return favorited of current track""")?.booleanValue ?: false
-    println("[Jukebox] isFavorited: $favorited")
-    return favorited
-  }
+  public fun isFavorited(): Boolean =
+    executeScriptRaw("""tell application "Music" to return favorited of current track""")?.booleanValue ?: false
 
-  fun getAlbumArtwork(): NSImage? {
+  public fun getAlbumArtwork(): NSImage? {
     // Primary: AppleScript raw data → temp file → NSImage (비라이브러리 트랙에서도 동작)
     val path = executeScript(
       """
@@ -141,50 +120,30 @@ class MusicBridge {
             end tell
             """.trimIndent(),
     )
-    println("[Jukebox] getAlbumArtwork: AppleScript path = $path")
     if (!path.isNullOrEmpty()) {
-      NSImage(contentsOfFile = path)?.let {
-        println("[Jukebox] getAlbumArtwork: loaded from temp file OK")
-        return it
-      }
-      println("[Jukebox] getAlbumArtwork: NSImage(contentsOfFile:) failed for path")
+      return NSImage(contentsOfFile = path)
     }
 
     // Fallback: SBApplication (라이브러리 트랙용)
-    println("[Jukebox] getAlbumArtwork: trying SBApplication fallback")
     return getAlbumArtworkViaSB()
   }
 
   private fun getAlbumArtworkViaSB(): NSImage? {
-    val app = SBApplication.applicationWithBundleIdentifier(bundleId) ?: run {
-      println("[Jukebox] SB: applicationWithBundleIdentifier returned null")
-      return null
-    }
-    val currentTrack = app.valueForKey("currentTrack") as? SBObject ?: run {
-      println("[Jukebox] SB: currentTrack is null or not SBObject")
-      return null
-    }
-    val artworks = currentTrack.valueForKey("artworks") as? NSArray ?: run {
-      println("[Jukebox] SB: artworks is null or not NSArray")
-      return null
-    }
-    if (artworks.count.toInt() == 0) {
-      println("[Jukebox] SB: artworks count is 0")
-      return null
-    }
+    val app = SBApplication.applicationWithBundleIdentifier(bundleId) ?: return null
+    val currentTrack = app.valueForKey("currentTrack") as? SBObject ?: return null
+    val artworks = currentTrack.valueForKey("artworks") as? NSArray ?: return null
+    if (artworks.count.toInt() == 0) return null
     val artwork = artworks.objectAtIndex(0u) as? SBObject ?: return null
     val dataObj = artwork.valueForKey("data")
-    println("[Jukebox] SB: artwork data type = ${dataObj?.let { it::class.simpleName ?: "unknown" } ?: "null"}")
 
-    (dataObj as? NSImage)?.let { println("[Jukebox] SB: artwork loaded as NSImage"); return it }
-    (dataObj as? NSAppleEventDescriptor)?.data?.let { println("[Jukebox] SB: artwork loaded via NSAppleEventDescriptor"); return NSImage(data = it) }
-    (dataObj as? NSData)?.let { println("[Jukebox] SB: artwork loaded as NSData"); return NSImage(data = it) }
-    (artwork.valueForKey("rawData") as? NSData)?.let { println("[Jukebox] SB: artwork loaded via rawData"); return NSImage(data = it) }
-    println("[Jukebox] SB: all artwork extraction methods failed")
+    (dataObj as? NSImage)?.let { return it }
+    (dataObj as? NSAppleEventDescriptor)?.data?.let { return NSImage(data = it) }
+    (dataObj as? NSData)?.let { return NSImage(data = it) }
+    (artwork.valueForKey("rawData") as? NSData)?.let { return NSImage(data = it) }
     return null
   }
 
-  fun getAlbumArtworkWithRetry(
+  public fun getAlbumArtworkWithRetry(
     title: String = "",
     artist: String = "",
     album: String = "",
@@ -192,18 +151,12 @@ class MusicBridge {
   ) {
     // 1. AppleScript + SB (라이브러리 트랙)
     getAlbumArtwork()?.let {
-      println("[Jukebox] artworkWithRetry: sync success")
       onResult(it)
       return
     }
 
     // 2. iTunes Search API (비라이브러리 스트리밍 트랙용)
-    println("[Jukebox] artworkWithRetry: sync failed, trying iTunes Search")
-    getAlbumArtworkViaITunesSearch(title, artist, album) { image ->
-      if (image != null) println("[Jukebox] artworkWithRetry: iTunes Search success")
-      else println("[Jukebox] artworkWithRetry: all methods exhausted")
-      onResult(image)
-    }
+    getAlbumArtworkViaITunesSearch(title, artist, album, onResult)
   }
 
   // --- iTunes Search API를 통한 아트워크 (비라이브러리 스트리밍 트랙용, 인증 불필요) ---
@@ -215,13 +168,9 @@ class MusicBridge {
 
     val cacheFile = "$artworkCacheDir/${"$title|||$artist|||$album".hashCode().toUInt().toString(16)}.jpg"
     if (NSFileManager.defaultManager.fileExistsAtPath(cacheFile)) {
-      NSImage(contentsOfFile = cacheFile)?.let {
-        println("[Jukebox] iTunes Search: disk cache hit for '$title' by '$artist' on '$album'")
-        onResult(it)
-        return
-      }
+      onResult(NSImage(contentsOfFile = cacheFile))
+      return
     }
-    println("[Jukebox] iTunes Search: cache miss, fetching '$title' by '$artist' on '$album'")
 
     val components = NSURLComponents().apply {
       scheme = "https"
@@ -235,36 +184,25 @@ class MusicBridge {
       )
     }
     val searchUrl = components.URL?.absoluteString ?: run {
-      println("[Jukebox] iTunes Search: invalid URL")
       onResult(null)
       return
     }
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT.toLong(), 0uL)) {
-      // 1. Search API 호출
       val json = shellExec("/usr/bin/curl -sf '$searchUrl'")
       if (json.isNullOrEmpty()) {
-        println("[Jukebox] iTunes Search: request failed")
         dispatch_async(dispatch_get_main_queue()) { onResult(null) }
         return@dispatch_async
       }
 
-      // 2. JSON 파싱 → 아트워크 URL 추출
       val artworkUrl = parseArtworkUrlFromJson(json)
       if (artworkUrl == null) {
-        println("[Jukebox] iTunes Search: no results for '$title' by '$artist' on '$album'")
         dispatch_async(dispatch_get_main_queue()) { onResult(null) }
         return@dispatch_async
       }
 
-      // 3. 아트워크 다운로드 → 디스크 캐시 → NSImage
       shellExec("/usr/bin/curl -sf -o '$cacheFile' '$artworkUrl'")
       val image = NSImage(contentsOfFile = cacheFile)
-      if (image != null) {
-        println("[Jukebox] iTunes Search: fetched and cached '$title' by '$artist' on '$album'")
-      } else {
-        println("[Jukebox] iTunes Search: artwork download failed")
-      }
       dispatch_async(dispatch_get_main_queue()) { onResult(image) }
     }
   }
@@ -301,18 +239,12 @@ class MusicBridge {
     }
   }
 
-  private fun executeScript(source: String, silent: Boolean = false): String? {
-    val result = executeScriptRaw(source, silent)
-    val str = result?.stringValue
-    if (!silent) println("[Jukebox] executeScript: result=$str, script=${source.take(60)}")
-    return str
-  }
+  private fun executeScript(source: String): String? =
+    executeScriptRaw(source)?.stringValue
 
-  private fun executeScriptRaw(source: String, silent: Boolean = false): NSAppleEventDescriptor? = memScoped {
+  private fun executeScriptRaw(source: String): NSAppleEventDescriptor? = memScoped {
     val errorInfo = alloc<ObjCObjectVar<Map<Any?, *>?>>()
     val script = NSAppleScript(source = source)
-    val result = script.executeAndReturnError(errorInfo.ptr)
-    if (!silent) println("[Jukebox] executeScriptRaw: ${if (result != null) "OK" else "FAILED"}, script=${source.take(60)}")
-    result
+    script.executeAndReturnError(errorInfo.ptr)
   }
 }
