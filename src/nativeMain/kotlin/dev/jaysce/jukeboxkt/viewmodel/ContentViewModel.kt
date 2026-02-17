@@ -5,39 +5,35 @@ import dev.jaysce.jukeboxkt.bridge.MusicBridge
 import dev.jaysce.jukeboxkt.model.Track
 import dev.jaysce.jukeboxkt.util.Constants
 import kotlinx.cinterop.ObjCAction
-import platform.Foundation.NSDistributedNotificationCenter
-import platform.Foundation.NSNotification
+import platform.Foundation.NSDate
 import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSNotification
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSSelectorFromString
-import platform.Foundation.NSDate
 import platform.Foundation.NSTimer
 import platform.Foundation.timeIntervalSince1970
 import platform.darwin.NSObject
 
-class ContentViewModel : NSObject() {
-  val musicBridge = MusicBridge()
+public class ContentViewModel : NSObject() {
+  private val musicBridge = MusicBridge()
 
-  var track: Track = Track()
+  public var track: Track = Track()
     private set
-  var isPlaying: Boolean = false
+  public var isPlaying: Boolean = false
     private set
-  var isFavorited: Boolean = false
-    private set
-
-  var trackDuration: Double = 0.0
-    private set
-  var seekerPosition: Double = 0.0
+  public var isFavorited: Boolean = false
     private set
 
-  var popoverIsShown: Boolean = true
+  public var trackDuration: Double = 0.0
+    private set
+  public var seekerPosition: Double = 0.0
     private set
 
   private var seekerTimer: NSTimer? = null
   private var lastFavoriteToggleTime: Double = 0.0
   private val listeners = mutableListOf<() -> Unit>()
 
-  fun addListener(listener: () -> Unit) {
+  public fun addListener(listener: () -> Unit) {
     listeners.add(listener)
   }
 
@@ -45,23 +41,13 @@ class ContentViewModel : NSObject() {
     listeners.forEach { it() }
   }
 
-  private var popoverWillShowObserver: Any? = null
-  private var popoverDidCloseObserver: Any? = null
-
-  fun setup() {
+  public fun setup() {
     setupObservers()
     if (musicBridge.isRunning) playStateOrTrackDidChange()
   }
 
-  fun tearDown() {
-    NSDistributedNotificationCenter.defaultCenter.removeObserver(this)
-    popoverWillShowObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
-    popoverDidCloseObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
-    pauseTimer()
-  }
-
   @ObjCAction
-  fun handleDistributedNotification(notification: NSNotification?) {
+  public fun handleDistributedNotification(notification: NSNotification?) {
     playStateOrTrackDidChange(notification)
   }
 
@@ -73,24 +59,20 @@ class ContentViewModel : NSObject() {
       null,
     )
 
-    popoverWillShowObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+    NSNotificationCenter.defaultCenter.addObserverForName(
       name = "NSPopoverWillShowNotification",
       `object` = null,
       queue = NSOperationQueue.mainQueue,
-    ) { startTimer(); popoverIsShown = true }
+    ) { startTimer() }
 
-    popoverDidCloseObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+    NSNotificationCenter.defaultCenter.addObserverForName(
       name = "NSPopoverDidCloseNotification",
       `object` = null,
       queue = NSOperationQueue.mainQueue,
-    ) { pauseTimer(); popoverIsShown = false }
+    ) { pauseTimer() }
   }
 
   private fun playStateOrTrackDidChange(notification: NSNotification? = null) {
-    notification?.userInfo?.let { ui ->
-      println("[Jukebox] notification userInfo: ${ui.keys}")
-      ui.forEach { (k, v) -> println("[Jukebox]   $k -> $v") }
-    }
     val playerState = notification?.userInfo?.get("Player State") as? String
     if (!musicBridge.isRunning || playerState == "Stopped") {
       track = Track()
@@ -99,12 +81,8 @@ class ContentViewModel : NSObject() {
       notifyListeners()
       return
     }
-    getPlayState()
-    getTrackInformation()
-  }
-
-  private fun getPlayState() {
     isPlaying = musicBridge.isPlaying()
+    getTrackInformation()
   }
 
   private fun getTrackInformation() {
@@ -142,27 +120,28 @@ class ContentViewModel : NSObject() {
     )
   }
 
-  fun togglePlayPause() {
+  public fun togglePlayPause() {
     isPlaying = !isPlaying
     notifyListeners()
     musicBridge.playPause()
   }
-  fun previousTrack() = musicBridge.previousTrack()
-  fun nextTrack() = musicBridge.nextTrack()
 
-  fun toggleFavorite() {
+  public fun previousTrack(): Unit = musicBridge.previousTrack()
+  public fun nextTrack(): Unit = musicBridge.nextTrack()
+
+  public fun toggleFavorite() {
     isFavorited = !isFavorited
     lastFavoriteToggleTime = NSDate().timeIntervalSince1970
     notifyListeners()
     musicBridge.setFavorited(isFavorited)
   }
 
-  fun getCurrentSeekerPosition() {
+  private fun getCurrentSeekerPosition() {
     if (!musicBridge.isRunning) return
     seekerPosition = musicBridge.getPlayerPosition()
   }
 
-  fun startTimer() {
+  private fun startTimer() {
     pauseTimer()
     seekerTimer = NSTimer.scheduledTimerWithTimeInterval(0.1, repeats = true) {
       getCurrentSeekerPosition()
@@ -170,20 +149,20 @@ class ContentViewModel : NSObject() {
     }
   }
 
-  fun pauseTimer() {
+  private fun pauseTimer() {
     seekerTimer?.invalidate()
     seekerTimer = null
   }
 
-  val isRunning: Boolean get() = musicBridge.isRunning
-  val name: String get() = Constants.AppleMusic.name
+  public val isRunning: Boolean get() = musicBridge.isRunning
+  public val name: String get() = Constants.AppleMusic.name
 
-  fun formatSecondsForDisplay(seconds: Double): String {
+  public fun formatSecondsForDisplay(seconds: Double): String {
     val totalSeconds = seconds.toInt()
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60
     val secs = totalSeconds % 60
-    return if (hours > 0) "$hours:$minutes:${secs.toString().padStart(2, '0')}"
+    return if (hours > 0) "$hours:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}"
     else "$minutes:${secs.toString().padStart(2, '0')}"
   }
 }

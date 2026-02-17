@@ -3,8 +3,6 @@ package dev.jaysce.jukeboxkt.viewmodel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class ContentViewModelTest {
   @Test
@@ -13,10 +11,9 @@ class ContentViewModelTest {
     assertEquals("", vm.track.title)
     assertEquals("", vm.track.artist)
     assertFalse(vm.isPlaying)
-    assertFalse(vm.isLoved)
+    assertFalse(vm.isFavorited)
     assertEquals(0.0, vm.trackDuration)
     assertEquals(0.0, vm.seekerPosition)
-    assertTrue(vm.popoverIsShown)
   }
 
   @Test
@@ -41,7 +38,7 @@ class ContentViewModelTest {
   fun formatSeconds_withHours() {
     val vm = ContentViewModel()
     // 1 hour, 2 minutes, 30 seconds
-    assertEquals("1:2:30", vm.formatSecondsForDisplay(3750.0))
+    assertEquals("1:02:30", vm.formatSecondsForDisplay(3750.0))
   }
 
   @Test
@@ -49,9 +46,7 @@ class ContentViewModelTest {
     val vm = ContentViewModel()
     var called = false
     vm.addListener { called = true }
-    // Listeners are called internally when state changes
-    // This test verifies the listener mechanism works
-    assertFalse(called) // Not called until state changes
+    assertFalse(called)
   }
 
   @Test
@@ -60,7 +55,5 @@ class ContentViewModelTest {
     assertEquals("", vm.track.title)
     assertEquals("", vm.track.artist)
     assertEquals("", vm.track.album)
-    assertFalse(vm.track.loved)
-    assertNull(vm.track.albumArt)
   }
 }
