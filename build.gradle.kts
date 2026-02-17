@@ -10,6 +10,8 @@ repositories {
 val appName = "Jukebox"
 
 kotlin {
+  explicitApi()
+
   macosArm64("native") {
     binaries {
       executable {

@@ -10,7 +10,7 @@ import platform.AppKit.NSImageView
 import platform.AppKit.NSView
 import platform.Foundation.NSMakeRect
 
-class AboutMenuItemView : NSView(NSMakeRect(0.0, 0.0, 220.0, 70.0)) {
+public class AboutMenuItemView : NSView(NSMakeRect(0.0, 0.0, 220.0, 70.0)) {
   init {
     val iconView = NSImageView(NSMakeRect(10.0, 5.0, 60.0, 60.0))
     iconView.image = NSApplication.sharedApplication.applicationIconImage

@@ -28,7 +28,7 @@ import platform.Foundation.NSSelectorFromString
 import platform.ServiceManagement.SMAppService
 import platform.ServiceManagement.SMAppServiceStatus
 
-class PreferencesContentView(
+public class PreferencesContentView(
   private val parentWindow: NSWindow,
 ) : NSView(NSMakeRect(0.0, 0.0, 400.0, 164.0)) {
 
@@ -112,23 +112,23 @@ class PreferencesContentView(
     })
   }
 
-  @ObjCAction fun closeWindow(sender: platform.darwin.NSObject?) = parentWindow.close()
+  @ObjCAction public fun closeWindow(sender: platform.darwin.NSObject?): Unit = parentWindow.close()
 
-  @ObjCAction fun openGitHub(sender: platform.darwin.NSObject?) {
+  @ObjCAction public fun openGitHub(sender: platform.darwin.NSObject?) {
     NSWorkspace.sharedWorkspace.openURL(Constants.AppInfo.repo)
   }
 
-  @ObjCAction fun openWebsite(sender: platform.darwin.NSObject?) {
+  @ObjCAction public fun openWebsite(sender: platform.darwin.NSObject?) {
     NSWorkspace.sharedWorkspace.openURL(Constants.AppInfo.website)
   }
 
-  @ObjCAction fun toggleLaunchAtLogin(sender: platform.darwin.NSObject?) {
+  @ObjCAction public fun toggleLaunchAtLogin(sender: platform.darwin.NSObject?) {
     val service = SMAppService.mainAppService
     if (launchAtLoginCheckbox.state == 1L) service.registerAndReturnError(null)
     else service.unregisterAndReturnError(null)
   }
 
-  @ObjCAction fun checkPermissions(sender: platform.darwin.NSObject?) {
+  @ObjCAction public fun checkPermissions(sender: platform.darwin.NSObject?) {
     val consent = promptUserForConsent(Constants.AppleMusic.bundleID)
     val alert = NSAlert()
     when (consent) {

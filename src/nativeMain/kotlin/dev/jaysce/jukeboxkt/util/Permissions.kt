@@ -7,11 +7,11 @@ import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
 import platform.Foundation.NSAppleScript
 
-enum class PermissionStatus {
+public enum class PermissionStatus {
   CLOSED, GRANTED, NOT_PROMPTED, DENIED
 }
 
-fun promptUserForConsent(appBundleID: String): PermissionStatus {
+public fun promptUserForConsent(appBundleID: String): PermissionStatus {
   val source = """
         tell application id "$appBundleID"
             return name

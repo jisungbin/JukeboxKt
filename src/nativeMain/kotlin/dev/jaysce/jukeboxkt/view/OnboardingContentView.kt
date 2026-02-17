@@ -24,7 +24,7 @@ import platform.Foundation.NSSelectorFromString
 import platform.Foundation.NSUserDefaults
 import platform.MetalKit.MTKView
 
-class OnboardingContentView(
+public class OnboardingContentView(
   private val onFinish: () -> Unit,
 ) : NSView(NSMakeRect(0.0, 0.0, 500.0, 200.0)) {
 
@@ -95,11 +95,11 @@ class OnboardingContentView(
     addSubview(continueButton)
   }
 
-  @ObjCAction fun quitApp(sender: platform.darwin.NSObject?) {
+  @ObjCAction public fun quitApp(sender: platform.darwin.NSObject?) {
     NSApp?.terminate(this)
   }
 
-  @ObjCAction fun continueClicked(sender: platform.darwin.NSObject?) {
+  @ObjCAction public fun continueClicked(sender: platform.darwin.NSObject?) {
     when (promptUserForConsent(Constants.AppleMusic.bundleID)) {
       PermissionStatus.GRANTED -> {
         defaults.setBool(true, forKey = "viewedOnboarding")

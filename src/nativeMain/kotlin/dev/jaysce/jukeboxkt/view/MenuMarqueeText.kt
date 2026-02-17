@@ -21,18 +21,18 @@ import platform.QuartzCore.CABasicAnimation
 import platform.QuartzCore.CALayer
 import platform.QuartzCore.CATextLayer
 
-class MenuMarqueeText(
+public class MenuMarqueeText(
   text: String,
   menubarBounds: CValue<CGRect>,
   menubarAppearance: NSAppearance,
 ) : NSView(menubarBounds) {
 
-  var text: String = text
+  public var text: String = text
     set(value) {
       field = value; needsDisplay = true
     }
 
-  var menubarIsDarkAppearance: Boolean = menubarAppearance.bestMatchFromAppearancesWithNames(
+  public var menubarIsDarkAppearance: Boolean = menubarAppearance.bestMatchFromAppearancesWithNames(
     listOf(NSAppearanceNameVibrantDark, NSAppearanceNameVibrantLight),
   ) == NSAppearanceNameVibrantDark
     set(value) {
@@ -45,7 +45,7 @@ class MenuMarqueeText(
     ) == NSAppearanceNameVibrantDark
   }
 
-  var menubarBounds: CValue<CGRect> = menubarBounds
+  public var menubarBounds: CValue<CGRect> = menubarBounds
     set(value) {
       field = value; needsDisplay = true
     }

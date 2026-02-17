@@ -19,7 +19,7 @@ import platform.MetalKit.MTKView
 import platform.MetalKit.MTKViewDelegateProtocol
 import platform.darwin.NSObject
 
-class MetalRenderer(
+public class MetalRenderer(
   private val functionName: String,
   private val mtkView: MTKView,
 ) : NSObject(), MTKViewDelegateProtocol {
@@ -89,7 +89,7 @@ class MetalRenderer(
     commandBuffer.commit()
   }
 
-  fun setPaused(paused: Boolean) {
+  public fun setPaused(paused: Boolean) {
     mtkView.setPaused(paused)
   }
 }

@@ -10,7 +10,7 @@ import platform.Foundation.NSEdgeInsetsMake
 import platform.Foundation.NSMakeRect
 import platform.Foundation.NSSelectorFromString
 
-class ContentPopoverView(
+public class ContentPopoverView(
   private val viewModel: ContentViewModel,
 ) : NSView(NSMakeRect(0.0, 0.0, 272.0, 350.0)) {
 
@@ -214,10 +214,10 @@ class ContentPopoverView(
     ))
   }
 
-  @ObjCAction fun favoriteClicked(sender: platform.darwin.NSObject?) = viewModel.toggleFavorite()
-  @ObjCAction fun prevClicked(sender: platform.darwin.NSObject?) = viewModel.previousTrack()
-  @ObjCAction fun playPauseClicked(sender: platform.darwin.NSObject?) = viewModel.togglePlayPause()
-  @ObjCAction fun nextClicked(sender: platform.darwin.NSObject?) = viewModel.nextTrack()
+  @ObjCAction public fun favoriteClicked(sender: platform.darwin.NSObject?): Unit = viewModel.toggleFavorite()
+  @ObjCAction public fun prevClicked(sender: platform.darwin.NSObject?): Unit = viewModel.previousTrack()
+  @ObjCAction public fun playPauseClicked(sender: platform.darwin.NSObject?): Unit = viewModel.togglePlayPause()
+  @ObjCAction public fun nextClicked(sender: platform.darwin.NSObject?): Unit = viewModel.nextTrack()
 
   private fun updateUI() {
     val running = viewModel.isRunning
