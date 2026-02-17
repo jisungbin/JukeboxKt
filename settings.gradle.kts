@@ -1,9 +1,19 @@
+@file:Suppress("UnstableApiUsage")
+
+import org.gradle.api.initialization.resolve.RepositoriesMode.FAIL_ON_PROJECT_REPOS
+
+rootProject.name = "Jukebox"
+
 pluginManagement {
   repositories {
     mavenCentral()
     gradlePluginPortal()
-    maven("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/dev")
   }
 }
 
-rootProject.name = "Jukebox"
+dependencyResolutionManagement {
+  repositoriesMode = FAIL_ON_PROJECT_REPOS
+  repositories {
+    mavenCentral()
+  }
+}

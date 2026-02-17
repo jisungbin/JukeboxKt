@@ -1,13 +1,8 @@
+@file:Suppress("LocalVariableName", "unused")
+
 plugins {
   kotlin("multiplatform") version "2.3.20-Beta2"
 }
-
-repositories {
-  mavenCentral()
-  maven("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/dev")
-}
-
-val appName = "Jukebox"
 
 kotlin {
   explicitApi()
@@ -19,7 +14,7 @@ kotlin {
         linkerOpts(
           "-framework", "AppKit",
           "-framework", "ScriptingBridge",
-           "-framework", "Metal",
+          "-framework", "Metal",
           "-framework", "MetalKit",
           "-framework", "QuartzCore",
           "-framework", "ServiceManagement",
@@ -33,11 +28,11 @@ kotlin {
     }
   }
 
-  @OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
   compilerOptions {
+    allWarningsAsErrors = true
     optIn.addAll(
-      "kotlinx.cinterop.ExperimentalForeignApi",
       "kotlinx.cinterop.BetaInteropApi",
+      "kotlinx.cinterop.ExperimentalForeignApi",
     )
   }
 
