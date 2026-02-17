@@ -35,15 +35,6 @@ kotlin {
       "kotlinx.cinterop.ExperimentalForeignApi",
     )
   }
-
-  sourceSets {
-    val nativeMain by getting
-    val nativeTest by getting {
-      dependencies {
-        implementation(kotlin("test"))
-      }
-    }
-  }
 }
 
 // Metal shader compilation
@@ -69,13 +60,12 @@ val compileMetalShaders by tasks.registering(Exec::class) {
 abstract class PackageAppTask @Inject constructor(
   private val execOps: ExecOperations,
   private val fsOps: FileSystemOperations,
+  private val layout: ProjectLayout,
 ) : DefaultTask() {
-  @get:Input
-  abstract var appName: String
+  @get:Input abstract var appName: String
 
-  @TaskAction
-  fun execute() {
-    val buildDir = project.layout.buildDirectory.get().asFile
+  @TaskAction fun execute() {
+    val buildDir = layout.buildDirectory.get().asFile
     val appBundle = buildDir.resolve("$appName.app/Contents")
     val macosDir = appBundle.resolve("MacOS").also { it.mkdirs() }
     val resourcesDir = appBundle.resolve("Resources").also { it.mkdirs() }
@@ -116,8 +106,12 @@ abstract class PackageAppTask @Inject constructor(
     if (entitlements.exists()) {
       execOps.exec {
         commandLine(
-          "codesign", "--force", "--sign", "-",
-          "--entitlements", entitlements.absolutePath,
+          "codesign",
+          "--force",
+          "--sign",
+          "-",
+          "--entitlements",
+          entitlements.absolutePath,
           appBundle.parentFile.absolutePath,
         )
       }
