@@ -6,9 +6,9 @@ import kotlinx.cinterop.ObjCAction
 import kotlinx.cinterop.useContents
 import platform.AppKit.*
 import platform.CoreGraphics.CGSizeMake
-import platform.Foundation.NSEdgeInsetsMake
 import platform.Foundation.NSMakeRect
 import platform.Foundation.NSSelectorFromString
+import platform.MetalKit.MTKView
 
 public class ContentPopoverView(
   private val viewModel: ContentViewModel,
@@ -28,7 +28,9 @@ public class ContentPopoverView(
   private val controlsStack = NSStackView()
   private val controlsGlass = NSGlassEffectView()
 
-  private val backgroundImageView = NSImageView()
+  private val backgroundMetalView = MTKView()
+  private var albumWarpRenderer: AlbumWarpRenderer? = null
+  private var lastAlbumArt: NSImage? = null
   private val blurView = NSVisualEffectView()
 
   init {
@@ -45,7 +47,7 @@ public class ContentPopoverView(
     val bleed = 12.0
     bounds.useContents {
       val bleedFrame = NSMakeRect(-bleed, -bleed, size.width + 2 * bleed, size.height + 2 * bleed)
-      backgroundImageView.frame = bleedFrame
+      backgroundMetalView.frame = bleedFrame
       blurView.frame = bleedFrame
     }
     // Controls pill: 실제 높이 기반 균일한 cornerRadius
@@ -55,15 +57,14 @@ public class ContentPopoverView(
   }
 
   private fun setupSubviews() {
-    // Background (frame-based, positioned in layout() with bleed)
-    backgroundImageView.apply {
-      imageScaling = NSImageScaleProportionallyUpOrDown
-    }
-    addSubview(backgroundImageView)
+    // Background (Metal color gradient from album art)
+    albumWarpRenderer = AlbumWarpRenderer(mtkView = backgroundMetalView)
+    addSubview(backgroundMetalView)
 
     blurView.apply {
       material = NSVisualEffectMaterialPopover
       blendingMode = NSVisualEffectBlendingMode.NSVisualEffectBlendingModeWithinWindow
+      alphaValue = 0.7
     }
     addSubview(blurView)
 
@@ -121,7 +122,7 @@ public class ContentPopoverView(
 
     timeLabel.apply {
       translatesAutoresizingMaskIntoConstraints = false
-      font = NSFont.systemFontOfSize(11.0)
+      font = NSFont.systemFontOfSize(12.0)
       textColor = NSColor.labelColor.colorWithAlphaComponent(0.6)
       alignment = NSTextAlignmentCenter
     }
@@ -144,6 +145,7 @@ public class ContentPopoverView(
 
     controlsGlass.apply {
       translatesAutoresizingMaskIntoConstraints = false
+      alphaValue = 0.8
     }
     addSubview(controlsGlass)
 
@@ -197,7 +199,7 @@ public class ContentPopoverView(
       controlsGlass.bottomAnchor.constraintEqualToAnchor(albumArtContainer.bottomAnchor, constant = -8.0),
 
       // Title (below album art)
-      titleLabel.topAnchor.constraintEqualToAnchor(albumArtContainer.bottomAnchor, constant = 20.0),
+      titleLabel.topAnchor.constraintEqualToAnchor(albumArtContainer.bottomAnchor, constant = 10.0),
       titleLabel.leadingAnchor.constraintEqualToAnchor(leadingAnchor, constant = 28.0),
       titleLabel.trailingAnchor.constraintEqualToAnchor(trailingAnchor, constant = -28.0),
 
@@ -207,7 +209,7 @@ public class ContentPopoverView(
       artistLabel.trailingAnchor.constraintEqualToAnchor(titleLabel.trailingAnchor),
 
       // Time (below artist, pinned to bottom → completes vertical chain)
-      timeLabel.topAnchor.constraintEqualToAnchor(artistLabel.bottomAnchor, constant = 4.0),
+      timeLabel.topAnchor.constraintEqualToAnchor(artistLabel.bottomAnchor, constant = 8.0),
       timeLabel.leadingAnchor.constraintEqualToAnchor(titleLabel.leadingAnchor),
       timeLabel.trailingAnchor.constraintEqualToAnchor(titleLabel.trailingAnchor),
       timeLabel.bottomAnchor.constraintEqualToAnchor(bottomAnchor, constant = -padding),
@@ -219,12 +221,22 @@ public class ContentPopoverView(
   @ObjCAction public fun playPauseClicked(sender: platform.darwin.NSObject?): Unit = viewModel.togglePlayPause()
   @ObjCAction public fun nextClicked(sender: platform.darwin.NSObject?): Unit = viewModel.nextTrack()
 
+  override fun viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    albumWarpRenderer?.setPaused(window == null)
+  }
+
   private fun updateUI() {
     val running = viewModel.isRunning
 
-    backgroundImageView.setHidden(!running)
+    backgroundMetalView.setHidden(!running)
     blurView.setHidden(!running)
-    if (running) backgroundImageView.image = viewModel.track.albumArt
+
+    val currentArt = if (running) viewModel.track.albumArt else null
+    if (currentArt !== lastAlbumArt) {
+      lastAlbumArt = currentArt
+      albumWarpRenderer?.updateAlbumArt(currentArt)
+    }
 
     notRunningLabel.setHidden(running)
     notRunningLabel.stringValue = "Play something on\n${viewModel.name}"
