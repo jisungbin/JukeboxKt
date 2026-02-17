@@ -22,15 +22,12 @@ import platform.AppKit.NSVisualEffectView
 import platform.Foundation.NSMakeRect
 import platform.Foundation.NSSelectorFromString
 import platform.Foundation.NSUserDefaults
-import platform.MetalKit.MTKView
 
 public class OnboardingContentView(
   private val onFinish: () -> Unit,
 ) : NSView(NSMakeRect(0.0, 0.0, 500.0, 200.0)) {
 
   private val defaults = NSUserDefaults.standardUserDefaults
-  private val metalView = MTKView(NSMakeRect(0.0, 0.0, 250.0, 200.0))
-  private var metalRenderer: MetalRenderer? = null
   private val continueButton = NSButton()
 
   init {
@@ -40,9 +37,6 @@ public class OnboardingContentView(
   }
 
   private fun setupLeftPanel() {
-    metalRenderer = MetalRenderer(functionName = "warp", mtkView = metalView)
-    addSubview(metalView)
-
     addSubview(NSVisualEffectView(NSMakeRect(0.0, 0.0, 250.0, 200.0)).apply {
       material = NSVisualEffectMaterialPopover
       blendingMode = NSVisualEffectBlendingMode.NSVisualEffectBlendingModeWithinWindow
@@ -103,7 +97,6 @@ public class OnboardingContentView(
     when (promptUserForConsent(Constants.AppleMusic.bundleID)) {
       PermissionStatus.GRANTED -> {
         defaults.setBool(true, forKey = "viewedOnboarding")
-        metalRenderer?.setPaused(true)
         onFinish()
       }
       PermissionStatus.CLOSED -> showAlert(

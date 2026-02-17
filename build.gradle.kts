@@ -19,8 +19,6 @@ kotlin {
         linkerOpts(
           "-framework", "AppKit",
           "-framework", "ScriptingBridge",
-          "-framework", "Metal",
-          "-framework", "MetalKit",
           "-framework", "QuartzCore",
           "-framework", "ServiceManagement",
           "-F/System/Library/PrivateFrameworks",
@@ -49,26 +47,6 @@ kotlin {
       }
     }
   }
-}
-
-// Metal shader compilation
-val compileMetalShaders by tasks.registering(Exec::class) {
-  val shaderDir = file("src/nativeMain/resources/shaders")
-  val metalBuildDir = layout.buildDirectory.dir("metal").get().asFile
-
-  inputs.dir(shaderDir)
-  outputs.dir(metalBuildDir)
-
-  doFirst { metalBuildDir.mkdirs() }
-
-  commandLine(
-    "bash", "-c",
-    """
-        xcrun metal -c "${shaderDir.absolutePath}/Gradient.metal" -o "${metalBuildDir.absolutePath}/Gradient.air" &&
-        xcrun metal -c "${shaderDir.absolutePath}/BaseWarp.metal" -o "${metalBuildDir.absolutePath}/BaseWarp.air" &&
-        xcrun metallib "${metalBuildDir.absolutePath}/Gradient.air" "${metalBuildDir.absolutePath}/BaseWarp.air" -o "${metalBuildDir.absolutePath}/default.metallib"
-        """.trimIndent(),
-  )
 }
 
 // App bundle packaging
@@ -102,12 +80,6 @@ abstract class PackageAppTask @Inject constructor(
       into(appBundle)
     }
 
-    // Copy metallib
-    fsOps.copy {
-      from(buildDir.resolve("metal/default.metallib"))
-      into(resourcesDir)
-    }
-
     // Copy AppIcon if exists
     val iconFile = project.file("packaging/AppIcon.icns")
     if (iconFile.exists()) {
@@ -132,6 +104,6 @@ abstract class PackageAppTask @Inject constructor(
 }
 
 tasks.register<PackageAppTask>("packageApp") {
-  dependsOn("linkReleaseExecutableNative", compileMetalShaders)
+  dependsOn("linkReleaseExecutableNative")
   appName = "Jukebox"
 }
