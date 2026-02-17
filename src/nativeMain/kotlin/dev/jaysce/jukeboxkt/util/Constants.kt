@@ -5,10 +5,12 @@ import platform.AppKit.NSFontWeightMedium
 import platform.Foundation.NSBundle
 import platform.Foundation.NSURL
 
+@Suppress("ConstPropertyName")
 public object Constants {
   public object AppInfo {
     public val appVersion: String?
       get() = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String
+
     public val repo: NSURL = NSURL(string = "https://github.com/Jaysce/Jukebox")
     public val website: NSURL = NSURL(string = "https://jaysce.dev/projects/jukebox")
   }
@@ -23,6 +25,6 @@ public object Constants {
   public object AppleMusic {
     public const val name: String = "Apple Music"
     public const val bundleID: String = "com.apple.Music"
-    public val notification: String = "$bundleID.playerInfo"
+    public const val notification: String = "$bundleID.playerInfo"
   }
 }

@@ -9,7 +9,6 @@ import kotlinx.cinterop.objcPtr
 import kotlinx.cinterop.useContents
 import platform.AppKit.NSAppearance
 import platform.AppKit.NSAppearanceNameVibrantDark
-import platform.AppKit.NSAppearanceNameVibrantLight
 import platform.AppKit.NSColor
 import platform.AppKit.NSScreen
 import platform.AppKit.NSView
@@ -26,28 +25,28 @@ public class MenuMarqueeText(
   menubarBounds: CValue<CGRect>,
   menubarAppearance: NSAppearance,
 ) : NSView(menubarBounds) {
-
   public var text: String = text
     set(value) {
-      field = value; needsDisplay = true
+      field = value
+      needsDisplay = true
     }
 
-  public var menubarIsDarkAppearance: Boolean = menubarAppearance.bestMatchFromAppearancesWithNames(
-    listOf(NSAppearanceNameVibrantDark, NSAppearanceNameVibrantLight),
-  ) == NSAppearanceNameVibrantDark
+  public var menubarIsDarkAppearance: Boolean =
+    menubarAppearance.bestMatchFromAppearancesWithNames(VIBRANT_APPEARANCES) == NSAppearanceNameVibrantDark
     set(value) {
-      field = value; needsDisplay = true
+      field = value
+      needsDisplay = true
     }
 
   override fun viewDidChangeEffectiveAppearance() {
-    menubarIsDarkAppearance = effectiveAppearance.bestMatchFromAppearancesWithNames(
-      listOf(NSAppearanceNameVibrantDark, NSAppearanceNameVibrantLight),
-    ) == NSAppearanceNameVibrantDark
+    menubarIsDarkAppearance =
+      effectiveAppearance.bestMatchFromAppearancesWithNames(VIBRANT_APPEARANCES) == NSAppearanceNameVibrantDark
   }
 
   public var menubarBounds: CValue<CGRect> = menubarBounds
     set(value) {
-      field = value; needsDisplay = true
+      field = value
+      needsDisplay = true
     }
 
   private val foregroundColor
@@ -87,15 +86,16 @@ public class MenuMarqueeText(
       fontSize = font.pointSize
       foregroundColor = this@MenuMarqueeText.foregroundColor
       frame = CGRectMake(
-        if (isFirstLayer) 0.0 else stringWidth + padding,
-        (boundsHeight / 2) - (stringHeight / 2),
-        stringWidth,
-        stringHeight,
+        x = if (isFirstLayer) 0.0 else stringWidth + padding,
+        y = (boundsHeight / 2) - (stringHeight / 2),
+        width = stringWidth,
+        height = stringHeight,
       )
       NSScreen.mainScreen?.backingScaleFactor?.let { contentsScale = it }
     }
 
-    if (stringWidth - padding < 200) return textLayer
+    if (stringWidth - padding < 200)
+      return textLayer
 
     val duration = stringWidth / 30
     val delay = 3.0
@@ -110,12 +110,14 @@ public class MenuMarqueeText(
       this.duration = duration + delay
       repeatCount = Float.MAX_VALUE
     }
+
     textLayer.addAnimation(group, forKey = null)
     return textLayer
   }
 
   override fun updateLayer() {
     frame = menubarBounds
+
     // toList()로 snapshot 복사 후 제거 (live 참조 순회 중 수정 방지)
     maskLayer.sublayers?.toList()?.forEach { (it as CALayer).removeFromSuperlayer() }
 

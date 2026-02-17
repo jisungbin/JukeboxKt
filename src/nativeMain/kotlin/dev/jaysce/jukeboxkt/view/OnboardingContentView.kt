@@ -1,7 +1,10 @@
 package dev.jaysce.jukeboxkt.view
 
 import dev.jaysce.jukeboxkt.util.Constants
-import dev.jaysce.jukeboxkt.util.PermissionStatus
+import dev.jaysce.jukeboxkt.util.PermissionStatus.CLOSED
+import dev.jaysce.jukeboxkt.util.PermissionStatus.DENIED
+import dev.jaysce.jukeboxkt.util.PermissionStatus.GRANTED
+import dev.jaysce.jukeboxkt.util.PermissionStatus.NOT_PROMPTED
 import dev.jaysce.jukeboxkt.util.label
 import dev.jaysce.jukeboxkt.util.promptUserForConsent
 import kotlinx.cinterop.ObjCAction
@@ -23,10 +26,7 @@ import platform.Foundation.NSMakeRect
 import platform.Foundation.NSSelectorFromString
 import platform.Foundation.NSUserDefaults
 
-public class OnboardingContentView(
-  private val onFinish: () -> Unit,
-) : NSView(NSMakeRect(0.0, 0.0, 500.0, 200.0)) {
-
+public class OnboardingContentView(private val onFinish: () -> Unit) : NSView(NSMakeRect(0.0, 0.0, 500.0, 200.0)) {
   private val defaults = NSUserDefaults.standardUserDefaults
   private val continueButton = NSButton()
 
@@ -37,46 +37,58 @@ public class OnboardingContentView(
   }
 
   private fun setupLeftPanel() {
-    addSubview(NSVisualEffectView(NSMakeRect(0.0, 0.0, 250.0, 200.0)).apply {
-      material = NSVisualEffectMaterialPopover
-      blendingMode = NSVisualEffectBlendingMode.NSVisualEffectBlendingModeWithinWindow
-    })
+    addSubview(
+      NSVisualEffectView(NSMakeRect(0.0, 0.0, 250.0, 200.0)).apply {
+        material = NSVisualEffectMaterialPopover
+        blendingMode = NSVisualEffectBlendingMode.NSVisualEffectBlendingModeWithinWindow
+      },
+    )
 
-    addSubview(NSImageView(NSMakeRect(95.0, 70.0, 60.0, 60.0)).apply {
-      image = NSImage.imageNamed("AppIcon")
-      imageScaling = NSImageScaleProportionallyUpOrDown
-    })
+    addSubview(
+      NSImageView(NSMakeRect(95.0, 70.0, 60.0, 60.0)).apply {
+        image = NSImage.imageNamed("AppIcon")
+        imageScaling = NSImageScaleProportionallyUpOrDown
+      },
+    )
   }
 
   private fun setupRightPanel() {
-    addSubview(label("Jukebox.kt").apply {
-      font = NSFont.boldSystemFontOfSize(16.0)
-      frame = NSMakeRect(270.0, 150.0, 210.0, 22.0)
-      alignment = NSTextAlignmentCenter
-    })
+    addSubview(
+      label("Jukebox.kt").apply {
+        font = NSFont.boldSystemFontOfSize(16.0)
+        frame = NSMakeRect(270.0, 150.0, 210.0, 22.0)
+        alignment = NSTextAlignmentCenter
+      },
+    )
 
     addSubview(
       label(
-        "Jukebox.kt requires permission to control Apple Music and display music data.\n\nPlease open Apple Music and click Continue.",
+        "Jukebox.kt requires permission to control Apple Music and display music data.\n\n" +
+          "Please open Apple Music and click Continue.",
       ).apply {
         font = NSFont.systemFontOfSize(11.0)
         textColor = NSColor.secondaryLabelColor
         frame = NSMakeRect(270.0, 70.0, 210.0, 75.0)
         alignment = NSTextAlignmentCenter
         maximumNumberOfLines = 5
-      })
+      },
+    )
 
-    addSubview(NSView(NSMakeRect(250.0, 40.0, 250.0, 1.0)).apply {
-      wantsLayer = true
-      layer?.backgroundColor = NSColor.separatorColor.CGColor
-    })
+    addSubview(
+      NSView(NSMakeRect(250.0, 40.0, 250.0, 1.0)).apply {
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.separatorColor.CGColor
+      },
+    )
 
-    addSubview(NSButton(NSMakeRect(290.0, 8.0, 80.0, 28.0)).apply {
-      title = "Quit"
-      bezelStyle = NSBezelStyleRounded
-      target = this@OnboardingContentView
-      action = NSSelectorFromString("quitApp:")
-    })
+    addSubview(
+      NSButton(NSMakeRect(290.0, 8.0, 80.0, 28.0)).apply {
+        title = "Quit"
+        bezelStyle = NSBezelStyleRounded
+        target = this@OnboardingContentView
+        action = NSSelectorFromString("quitApp:")
+      },
+    )
 
     continueButton.apply {
       title = "Continue"
@@ -95,19 +107,19 @@ public class OnboardingContentView(
 
   @ObjCAction public fun continueClicked(sender: platform.darwin.NSObject?) {
     when (promptUserForConsent(Constants.AppleMusic.bundleID)) {
-      PermissionStatus.GRANTED -> {
+      GRANTED -> {
         defaults.setBool(true, forKey = "viewedOnboarding")
         onFinish()
       }
-      PermissionStatus.CLOSED -> showAlert(
+      CLOSED -> showAlert(
         "${Constants.AppleMusic.name} is not open",
         "Please open ${Constants.AppleMusic.name} to enable permissions",
       )
-      PermissionStatus.DENIED -> showAlert(
+      DENIED -> showAlert(
         "Permission denied",
         "Please go to System Settings > Privacy & Security > Automation, and check Apple Music under Jukebox.kt",
       )
-      PermissionStatus.NOT_PROMPTED -> {}
+      NOT_PROMPTED -> {}
     }
   }
 

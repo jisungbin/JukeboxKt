@@ -15,6 +15,9 @@ import platform.QuartzCore.CACurrentMediaTime
 import platform.QuartzCore.CALayer
 import platform.QuartzCore.kCACornerCurveContinuous
 
+// Fields are not supported for Companion of subclass of ObjC type.
+internal val VIBRANT_APPEARANCES = listOf(NSAppearanceNameVibrantDark, NSAppearanceNameVibrantLight)
+
 public class StatusBarAnimation(
   menubarAppearance: NSAppearance,
   private val menubarHeight: Double,
@@ -27,9 +30,8 @@ public class StatusBarAnimation(
     menubarHeight,
   ),
 ) {
-  public var menubarIsDarkAppearance: Boolean = menubarAppearance.bestMatchFromAppearancesWithNames(
-    listOf(NSAppearanceNameVibrantDark, NSAppearanceNameVibrantLight),
-  ) == NSAppearanceNameVibrantDark
+  public var menubarIsDarkAppearance: Boolean =
+    menubarAppearance.bestMatchFromAppearancesWithNames(VIBRANT_APPEARANCES) == NSAppearanceNameVibrantDark
     set(value) {
       field = value
       animate()
@@ -37,9 +39,8 @@ public class StatusBarAnimation(
     }
 
   override fun viewDidChangeEffectiveAppearance() {
-    menubarIsDarkAppearance = effectiveAppearance.bestMatchFromAppearancesWithNames(
-      listOf(NSAppearanceNameVibrantDark, NSAppearanceNameVibrantLight),
-    ) == NSAppearanceNameVibrantDark
+    menubarIsDarkAppearance =
+      effectiveAppearance.bestMatchFromAppearancesWithNames(VIBRANT_APPEARANCES) == NSAppearanceNameVibrantDark
   }
 
   public var isPlaying: Boolean = isPlaying
@@ -66,6 +67,7 @@ public class StatusBarAnimation(
 
   override fun viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
+
     // 윈도우 연결 후 올바른 backingScaleFactor 반영
     window?.backingScaleFactor?.let { scale ->
       layer?.contentsScale = scale
@@ -88,10 +90,10 @@ public class StatusBarAnimation(
         cornerCurve = kCACornerCurveContinuous
         anchorPoint = CGPointMake(0.0, 0.0)
         frame = CGRectMake(
-          if (this@StatusBarAnimation.isPlaying) i * 3.5 else i * 8.0,
-          (menubarHeight / 2) - 5,
-          if (this@StatusBarAnimation.isPlaying) 2.0 else 6.0,
-          if (this@StatusBarAnimation.isPlaying) barHeights[i] else 10.0,
+          x = if (this@StatusBarAnimation.isPlaying) i * 3.5 else i * 8.0,
+          y = (menubarHeight / 2) - 5,
+          width = if (this@StatusBarAnimation.isPlaying) 2.0 else 6.0,
+          height = if (this@StatusBarAnimation.isPlaying) barHeights[i] else 10.0,
         )
       }
       layer?.addSublayer(bar)

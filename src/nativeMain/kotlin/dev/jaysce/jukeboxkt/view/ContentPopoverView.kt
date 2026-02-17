@@ -4,16 +4,39 @@ import dev.jaysce.jukeboxkt.util.label
 import dev.jaysce.jukeboxkt.viewmodel.ContentViewModel
 import kotlinx.cinterop.ObjCAction
 import kotlinx.cinterop.useContents
-import platform.AppKit.*
+import platform.AppKit.NSBezelStyleAccessoryBarAction
+import platform.AppKit.NSButton
+import platform.AppKit.NSColor
+import platform.AppKit.NSFont
+import platform.AppKit.NSFontWeightMedium
+import platform.AppKit.NSGlassEffectView
+import platform.AppKit.NSImage
+import platform.AppKit.NSImageScaleProportionallyUpOrDown
+import platform.AppKit.NSImageView
+import platform.AppKit.NSLayoutConstraint
+import platform.AppKit.NSLineBreakByTruncatingTail
+import platform.AppKit.NSStackView
+import platform.AppKit.NSTextAlignmentCenter
+import platform.AppKit.NSUserInterfaceLayoutOrientationHorizontal
+import platform.AppKit.NSView
+import platform.AppKit.NSVisualEffectBlendingMode
+import platform.AppKit.NSVisualEffectMaterialPopover
+import platform.AppKit.NSVisualEffectView
+import platform.AppKit.bottomAnchor
+import platform.AppKit.centerXAnchor
+import platform.AppKit.centerYAnchor
+import platform.AppKit.heightAnchor
+import platform.AppKit.leadingAnchor
+import platform.AppKit.topAnchor
+import platform.AppKit.trailingAnchor
+import platform.AppKit.translatesAutoresizingMaskIntoConstraints
+import platform.AppKit.widthAnchor
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSMakeRect
 import platform.Foundation.NSSelectorFromString
 import platform.MetalKit.MTKView
 
-public class ContentPopoverView(
-  private val viewModel: ContentViewModel,
-) : NSView(NSMakeRect(0.0, 0.0, 272.0, 350.0)) {
-
+public class ContentPopoverView(private val viewModel: ContentViewModel) : NSView(NSMakeRect(0.0, 0.0, 272.0, 350.0)) {
   private val albumArtContainer = NSView()
   private val albumArtImageView = NSImageView()
   private val titleLabel = label()
@@ -37,19 +60,26 @@ public class ContentPopoverView(
     wantsLayer = true
     setupSubviews()
     setupConstraints()
-    viewModel.addListener { updateUI() }
+    viewModel.addListener(::updateUI)
     updateUI()
   }
 
   override fun layout() {
     super.layout()
+
     // Background bleed: frame-based to avoid inflating fittingSize
     val bleed = 12.0
     bounds.useContents {
-      val bleedFrame = NSMakeRect(-bleed, -bleed, size.width + 2 * bleed, size.height + 2 * bleed)
+      val bleedFrame = NSMakeRect(
+        x = -bleed,
+        y = -bleed,
+        w = size.width + 2 * bleed,
+        h = size.height + 2 * bleed,
+      )
       backgroundMetalView.frame = bleedFrame
       blurView.frame = bleedFrame
     }
+
     // Controls pill: 실제 높이 기반 균일한 cornerRadius
     controlsGlass.bounds.useContents {
       controlsGlass.cornerRadius = size.height / 2
@@ -105,7 +135,7 @@ public class ContentPopoverView(
     titleLabel.apply {
       translatesAutoresizingMaskIntoConstraints = false
       font = NSFont.boldSystemFontOfSize(15.0)
-      textColor = NSColor.labelColor.colorWithAlphaComponent(0.8)
+      textColor = NSColor.labelColor
       alignment = NSTextAlignmentCenter
       lineBreakMode = NSLineBreakByTruncatingTail
     }
@@ -114,7 +144,7 @@ public class ContentPopoverView(
     artistLabel.apply {
       translatesAutoresizingMaskIntoConstraints = false
       font = NSFont.systemFontOfSize(13.0, weight = NSFontWeightMedium)
-      textColor = NSColor.labelColor.colorWithAlphaComponent(0.6)
+      textColor = NSColor.secondaryLabelColor
       alignment = NSTextAlignmentCenter
       lineBreakMode = NSLineBreakByTruncatingTail
     }
@@ -123,7 +153,7 @@ public class ContentPopoverView(
     timeLabel.apply {
       translatesAutoresizingMaskIntoConstraints = false
       font = NSFont.systemFontOfSize(12.0)
-      textColor = NSColor.labelColor.colorWithAlphaComponent(0.6)
+      textColor = NSColor.secondaryLabelColor
       alignment = NSTextAlignmentCenter
     }
     addSubview(timeLabel)
@@ -162,58 +192,62 @@ public class ContentPopoverView(
     // NSGlassEffectView.contentView는 edgeInsets를 무시하므로 wrapper로 패딩 적용
     val wrapper = NSView()
     wrapper.addSubview(controlsStack)
-    NSLayoutConstraint.activateConstraints(listOf(
-      controlsStack.topAnchor.constraintEqualToAnchor(wrapper.topAnchor, constant = 10.0),
-      controlsStack.bottomAnchor.constraintEqualToAnchor(wrapper.bottomAnchor, constant = -10.0),
-      controlsStack.leadingAnchor.constraintEqualToAnchor(wrapper.leadingAnchor, constant = 14.0),
-      controlsStack.trailingAnchor.constraintEqualToAnchor(wrapper.trailingAnchor, constant = -14.0),
-    ))
+    NSLayoutConstraint.activateConstraints(
+      listOf(
+        controlsStack.topAnchor.constraintEqualToAnchor(wrapper.topAnchor, constant = 10.0),
+        controlsStack.bottomAnchor.constraintEqualToAnchor(wrapper.bottomAnchor, constant = -10.0),
+        controlsStack.leadingAnchor.constraintEqualToAnchor(wrapper.leadingAnchor, constant = 14.0),
+        controlsStack.trailingAnchor.constraintEqualToAnchor(wrapper.trailingAnchor, constant = -14.0),
+      ),
+    )
     controlsGlass.contentView = wrapper
   }
 
   private fun setupConstraints() {
     val padding = 16.0
 
-    NSLayoutConstraint.activateConstraints(listOf(
-      // Not running label (centered)
-      notRunningLabel.centerXAnchor.constraintEqualToAnchor(centerXAnchor),
-      notRunningLabel.centerYAnchor.constraintEqualToAnchor(centerYAnchor),
-      notRunningLabel.leadingAnchor.constraintEqualToAnchor(leadingAnchor, constant = padding),
-      notRunningLabel.trailingAnchor.constraintEqualToAnchor(trailingAnchor, constant = -padding),
+    NSLayoutConstraint.activateConstraints(
+      listOf(
+        // Not running label (centered)
+        notRunningLabel.centerXAnchor.constraintEqualToAnchor(centerXAnchor),
+        notRunningLabel.centerYAnchor.constraintEqualToAnchor(centerYAnchor),
+        notRunningLabel.leadingAnchor.constraintEqualToAnchor(leadingAnchor, constant = padding),
+        notRunningLabel.trailingAnchor.constraintEqualToAnchor(trailingAnchor, constant = -padding),
 
-      // Album art container (leading+trailing+width defines parent width = 272)
-      albumArtContainer.topAnchor.constraintEqualToAnchor(topAnchor, constant = padding),
-      albumArtContainer.leadingAnchor.constraintEqualToAnchor(leadingAnchor, constant = padding),
-      albumArtContainer.trailingAnchor.constraintEqualToAnchor(trailingAnchor, constant = -padding),
-      albumArtContainer.widthAnchor.constraintEqualToConstant(240.0),
-      albumArtContainer.heightAnchor.constraintEqualToConstant(240.0),
+        // Album art container (leading+trailing+width defines parent width = 272)
+        albumArtContainer.topAnchor.constraintEqualToAnchor(topAnchor, constant = padding),
+        albumArtContainer.leadingAnchor.constraintEqualToAnchor(leadingAnchor, constant = padding),
+        albumArtContainer.trailingAnchor.constraintEqualToAnchor(trailingAnchor, constant = -padding),
+        albumArtContainer.widthAnchor.constraintEqualToConstant(240.0),
+        albumArtContainer.heightAnchor.constraintEqualToConstant(240.0),
 
-      // Album art image (fill container)
-      albumArtImageView.topAnchor.constraintEqualToAnchor(albumArtContainer.topAnchor),
-      albumArtImageView.bottomAnchor.constraintEqualToAnchor(albumArtContainer.bottomAnchor),
-      albumArtImageView.leadingAnchor.constraintEqualToAnchor(albumArtContainer.leadingAnchor),
-      albumArtImageView.trailingAnchor.constraintEqualToAnchor(albumArtContainer.trailingAnchor),
+        // Album art image (fill container)
+        albumArtImageView.topAnchor.constraintEqualToAnchor(albumArtContainer.topAnchor),
+        albumArtImageView.bottomAnchor.constraintEqualToAnchor(albumArtContainer.bottomAnchor),
+        albumArtImageView.leadingAnchor.constraintEqualToAnchor(albumArtContainer.leadingAnchor),
+        albumArtImageView.trailingAnchor.constraintEqualToAnchor(albumArtContainer.trailingAnchor),
 
-      // Controls glass pill (contentView + edgeInsets handles internal padding)
-      controlsGlass.centerXAnchor.constraintEqualToAnchor(albumArtContainer.centerXAnchor),
-      controlsGlass.bottomAnchor.constraintEqualToAnchor(albumArtContainer.bottomAnchor, constant = -8.0),
+        // Controls glass pill (contentView + edgeInsets handles internal padding)
+        controlsGlass.centerXAnchor.constraintEqualToAnchor(albumArtContainer.centerXAnchor),
+        controlsGlass.bottomAnchor.constraintEqualToAnchor(albumArtContainer.bottomAnchor, constant = -8.0),
 
-      // Title (below album art)
-      titleLabel.topAnchor.constraintEqualToAnchor(albumArtContainer.bottomAnchor, constant = 10.0),
-      titleLabel.leadingAnchor.constraintEqualToAnchor(leadingAnchor, constant = 28.0),
-      titleLabel.trailingAnchor.constraintEqualToAnchor(trailingAnchor, constant = -28.0),
+        // Title (below album art)
+        titleLabel.topAnchor.constraintEqualToAnchor(albumArtContainer.bottomAnchor, constant = 10.0),
+        titleLabel.leadingAnchor.constraintEqualToAnchor(leadingAnchor, constant = 28.0),
+        titleLabel.trailingAnchor.constraintEqualToAnchor(trailingAnchor, constant = -28.0),
 
-      // Artist (below title)
-      artistLabel.topAnchor.constraintEqualToAnchor(titleLabel.bottomAnchor, constant = 2.0),
-      artistLabel.leadingAnchor.constraintEqualToAnchor(titleLabel.leadingAnchor),
-      artistLabel.trailingAnchor.constraintEqualToAnchor(titleLabel.trailingAnchor),
+        // Artist (below title)
+        artistLabel.topAnchor.constraintEqualToAnchor(titleLabel.bottomAnchor, constant = 2.0),
+        artistLabel.leadingAnchor.constraintEqualToAnchor(titleLabel.leadingAnchor),
+        artistLabel.trailingAnchor.constraintEqualToAnchor(titleLabel.trailingAnchor),
 
-      // Time (below artist, pinned to bottom → completes vertical chain)
-      timeLabel.topAnchor.constraintEqualToAnchor(artistLabel.bottomAnchor, constant = 8.0),
-      timeLabel.leadingAnchor.constraintEqualToAnchor(titleLabel.leadingAnchor),
-      timeLabel.trailingAnchor.constraintEqualToAnchor(titleLabel.trailingAnchor),
-      timeLabel.bottomAnchor.constraintEqualToAnchor(bottomAnchor, constant = -padding),
-    ))
+        // Time (below artist, pinned to bottom → completes vertical chain)
+        timeLabel.topAnchor.constraintEqualToAnchor(artistLabel.bottomAnchor, constant = 8.0),
+        timeLabel.leadingAnchor.constraintEqualToAnchor(titleLabel.leadingAnchor),
+        timeLabel.trailingAnchor.constraintEqualToAnchor(titleLabel.trailingAnchor),
+        timeLabel.bottomAnchor.constraintEqualToAnchor(bottomAnchor, constant = -padding),
+      )
+    )
   }
 
   @ObjCAction public fun favoriteClicked(sender: platform.darwin.NSObject?): Unit = viewModel.toggleFavorite()
@@ -228,7 +262,6 @@ public class ContentPopoverView(
 
   private fun updateUI() {
     val running = viewModel.isRunning
-
     backgroundMetalView.setHidden(!running)
     blurView.setHidden(!running)
 
@@ -241,15 +274,21 @@ public class ContentPopoverView(
     notRunningLabel.setHidden(running)
     notRunningLabel.stringValue = "Play something on\n${viewModel.name}"
 
-    listOf(albumArtContainer, controlsGlass, titleLabel, artistLabel, timeLabel).forEach {
-      it.setHidden(!running)
-    }
+    listOf(
+      albumArtContainer,
+      controlsGlass,
+      titleLabel,
+      artistLabel,
+      timeLabel,
+    )
+      .forEach { it.setHidden(!running) }
 
     if (running) {
       albumArtImageView.image = viewModel.track.albumArt
       titleLabel.stringValue = viewModel.track.title
       artistLabel.stringValue = viewModel.track.artist
-      timeLabel.stringValue = "${viewModel.formatSecondsForDisplay(viewModel.seekerPosition)} / ${viewModel.formatSecondsForDisplay(viewModel.trackDuration)}"
+      timeLabel.stringValue =
+        "${viewModel.formatSecondsForDisplay(viewModel.seekerPosition)} / ${viewModel.formatSecondsForDisplay(viewModel.trackDuration)}"
 
       val heartIcon = if (viewModel.isFavorited) "heart.fill" else "heart"
       favoriteButton.image = NSImage.imageWithSystemSymbolName(heartIcon, accessibilityDescription = null)

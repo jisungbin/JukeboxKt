@@ -5,7 +5,6 @@ import platform.AppKit.NSApplication
 
 public fun main() {
   val app = NSApplication.sharedApplication
-  val delegate = AppDelegate()
-  app.delegate = delegate
+  app.delegate = AppDelegate()
   app.run()
 }

@@ -1,5 +1,9 @@
 package dev.jaysce.jukeboxkt.util
 
+import dev.jaysce.jukeboxkt.util.PermissionStatus.CLOSED
+import dev.jaysce.jukeboxkt.util.PermissionStatus.DENIED
+import dev.jaysce.jukeboxkt.util.PermissionStatus.GRANTED
+import dev.jaysce.jukeboxkt.util.PermissionStatus.NOT_PROMPTED
 import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
@@ -8,7 +12,10 @@ import kotlinx.cinterop.value
 import platform.Foundation.NSAppleScript
 
 public enum class PermissionStatus {
-  CLOSED, GRANTED, NOT_PROMPTED, DENIED
+  CLOSED,
+  GRANTED,
+  NOT_PROMPTED,
+  DENIED,
 }
 
 public fun promptUserForConsent(appBundleID: String): PermissionStatus {
@@ -25,14 +32,13 @@ public fun promptUserForConsent(appBundleID: String): PermissionStatus {
 
     val error = errorDict.value
     if (error == null) {
-      PermissionStatus.GRANTED
+      GRANTED
     } else {
-      val errorNumber = (error["NSAppleScriptErrorNumber"] as? Number)?.toInt()
-      when (errorNumber) {
-        -600 -> PermissionStatus.CLOSED
-        -1743 -> PermissionStatus.DENIED
-        -1744 -> PermissionStatus.NOT_PROMPTED
-        else -> PermissionStatus.DENIED
+      when ((error["NSAppleScriptErrorNumber"] as? Number)?.toInt()) {
+        -600 -> CLOSED
+        -1743 -> DENIED
+        -1744 -> NOT_PROMPTED
+        else -> DENIED
       }
     }
   }

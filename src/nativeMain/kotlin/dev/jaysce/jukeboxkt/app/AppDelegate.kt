@@ -42,7 +42,6 @@ import platform.Foundation.timeIntervalSince1970
 import platform.darwin.NSObject
 
 public class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDelegateProtocol {
-
   private val defaults = NSUserDefaults.standardUserDefaults
   private val viewModel = ContentViewModel()
 
@@ -82,9 +81,7 @@ public class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDele
     popover = NSPopover().apply {
       behavior = NSPopoverBehaviorTransient
       animates = true
-      contentViewController = NSViewController().apply {
-        view = contentView
-      }
+      contentViewController = NSViewController().apply { view = contentView }
     }
 
     NSNotificationCenter.defaultCenter.addObserverForName(
@@ -121,13 +118,13 @@ public class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDele
     }
 
     statusBarItem = NSStatusBar.systemStatusBar.statusItemWithLength(-1.0)
-
     statusBarItem?.button?.let { button ->
       val anim = StatusBarAnimation(
         menubarAppearance = button.effectiveAppearance,
         menubarHeight = button.bounds.useContents { size.height },
         isPlaying = false,
       )
+
       barAnimation = anim
       button.addSubview(anim)
 
@@ -146,6 +143,7 @@ public class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDele
 
       button.target = this
       button.action = NSSelectorFromString("didClickStatusBarItem:")
+
       // NSEventMaskLeftMouseUp (4) | NSEventMaskRightMouseUp (16)
       button.sendActionOn(20uL)
     }
@@ -174,7 +172,9 @@ public class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDele
       pop.performClose(button)
     } else {
       // Prevent re-opening if just closed by transient behavior
-      if (NSDate().timeIntervalSince1970 - lastPopoverCloseTime < 0.3) return
+      if (NSDate().timeIntervalSince1970 - lastPopoverCloseTime < 0.3)
+        return
+
       pop.showRelativeToRect(button.bounds, ofView = button, preferredEdge = NSMinYEdge)
       pop.contentViewController?.view?.window?.makeKeyWindow()
       NSApplication.sharedApplication.activate()
@@ -217,8 +217,7 @@ public class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDele
     marqueeText.menubarBounds = button.bounds
   }
 
-  @ObjCAction
-  public fun showPreferences(sender: NSObject?) {
+  @ObjCAction public fun showPreferences(sender: NSObject?) {
     if (preferencesWindow == null) {
       val window = createFloatingWindow(400.0, 164.0)
       window.contentView = PreferencesContentView(window)
@@ -232,7 +231,7 @@ public class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDele
   private fun showOnboarding() {
     if (onboardingWindow == null) {
       onboardingWindow = createFloatingWindow(500.0, 200.0).apply {
-        contentView = OnboardingContentView { finishOnboarding() }
+        contentView = OnboardingContentView(::finishOnboarding)
       }
     }
     onboardingWindow!!.center()
@@ -253,7 +252,7 @@ public class AppDelegate : NSObject(), NSApplicationDelegateProtocol, NSMenuDele
       contentRect = NSMakeRect(0.0, 0.0, width, height),
       styleMask = NSWindowStyleMaskTitled or NSWindowStyleMaskFullSizeContentView,
       backing = NSBackingStoreBuffered,
-      `defer` = true,
+      defer = true,
     ).apply {
       level = NSFloatingWindowLevel
       titlebarAppearsTransparent = true

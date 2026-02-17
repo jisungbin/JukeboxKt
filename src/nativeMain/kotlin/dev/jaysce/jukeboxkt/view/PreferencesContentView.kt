@@ -1,7 +1,10 @@
 package dev.jaysce.jukeboxkt.view
 
 import dev.jaysce.jukeboxkt.util.Constants
-import dev.jaysce.jukeboxkt.util.PermissionStatus
+import dev.jaysce.jukeboxkt.util.PermissionStatus.CLOSED
+import dev.jaysce.jukeboxkt.util.PermissionStatus.DENIED
+import dev.jaysce.jukeboxkt.util.PermissionStatus.GRANTED
+import dev.jaysce.jukeboxkt.util.PermissionStatus.NOT_PROMPTED
 import dev.jaysce.jukeboxkt.util.label
 import dev.jaysce.jukeboxkt.util.promptUserForConsent
 import kotlinx.cinterop.ObjCAction
@@ -27,11 +30,9 @@ import platform.Foundation.NSMakeRect
 import platform.Foundation.NSSelectorFromString
 import platform.ServiceManagement.SMAppService
 import platform.ServiceManagement.SMAppServiceStatus
+import platform.darwin.NSObject
 
-public class PreferencesContentView(
-  private val parentWindow: NSWindow,
-) : NSView(NSMakeRect(0.0, 0.0, 400.0, 164.0)) {
-
+public class PreferencesContentView(private val parentWindow: NSWindow) : NSView(NSMakeRect(0.0, 0.0, 400.0, 164.0)) {
   private val launchAtLoginCheckbox = NSButton()
 
   init {
@@ -62,37 +63,47 @@ public class PreferencesContentView(
     }
     addSubview(iconView)
 
-    addSubview(label("Jukebox.kt").apply {
-      font = NSFont.boldSystemFontOfSize(14.0)
-      frame = NSMakeRect(185.0, 130.0, 80.0, 18.0)
-    })
+    addSubview(
+      label("Jukebox.kt").apply {
+        font = NSFont.boldSystemFontOfSize(14.0)
+        frame = NSMakeRect(185.0, 130.0, 80.0, 18.0)
+      },
+    )
 
-    addSubview(label("Version ${Constants.AppInfo.appVersion ?: "?"}").apply {
-      font = NSFont.systemFontOfSize(11.0)
-      textColor = NSColor.secondaryLabelColor
-      frame = NSMakeRect(185.0, 114.0, 100.0, 14.0)
-    })
+    addSubview(
+      label("Version ${Constants.AppInfo.appVersion ?: '?'}").apply {
+        font = NSFont.systemFontOfSize(11.0)
+        textColor = NSColor.secondaryLabelColor
+        frame = NSMakeRect(185.0, 114.0, 100.0, 14.0)
+      },
+    )
 
-    addSubview(NSButton(NSMakeRect(300.0, 130.0, 60.0, 20.0)).apply {
-      title = "GitHub"
-      bezelStyle = NSBezelStyleInline
-      target = this@PreferencesContentView
-      action = NSSelectorFromString("openGitHub:")
-    })
+    addSubview(
+      NSButton(NSMakeRect(300.0, 130.0, 60.0, 20.0)).apply {
+        title = "GitHub"
+        bezelStyle = NSBezelStyleInline
+        target = this@PreferencesContentView
+        action = NSSelectorFromString("openGitHub:")
+      },
+    )
 
-    addSubview(NSButton(NSMakeRect(300.0, 110.0, 60.0, 20.0)).apply {
-      title = "Website"
-      bezelStyle = NSBezelStyleInline
-      target = this@PreferencesContentView
-      action = NSSelectorFromString("openWebsite:")
-    })
+    addSubview(
+      NSButton(NSMakeRect(300.0, 110.0, 60.0, 20.0)).apply {
+        title = "Website"
+        bezelStyle = NSBezelStyleInline
+        target = this@PreferencesContentView
+        action = NSSelectorFromString("openWebsite:")
+      },
+    )
   }
 
   private fun setupPreferencePanes() {
-    addSubview(label("General").apply {
-      font = NSFont.systemFontOfSize(17.0, weight = NSFontWeightSemibold)
-      frame = NSMakeRect(16.0, 68.0, 200.0, 22.0)
-    })
+    addSubview(
+      label("General").apply {
+        font = NSFont.systemFontOfSize(17.0, weight = NSFontWeightSemibold)
+        frame = NSMakeRect(16.0, 68.0, 200.0, 22.0)
+      },
+    )
 
     launchAtLoginCheckbox.apply {
       setButtonType(NSButtonTypeSwitch)
@@ -104,50 +115,58 @@ public class PreferencesContentView(
     }
     addSubview(launchAtLoginCheckbox)
 
-    addSubview(NSButton(NSMakeRect(16.0, 16.0, 180.0, 24.0)).apply {
-      title = "Check permissions..."
-      bezelStyle = NSBezelStyleRounded
-      target = this@PreferencesContentView
-      action = NSSelectorFromString("checkPermissions:")
-    })
+    addSubview(
+      NSButton(NSMakeRect(16.0, 16.0, 180.0, 24.0)).apply {
+        title = "Check permissions..."
+        bezelStyle = NSBezelStyleRounded
+        target = this@PreferencesContentView
+        action = NSSelectorFromString("checkPermissions:")
+      },
+    )
   }
 
-  @ObjCAction public fun closeWindow(sender: platform.darwin.NSObject?): Unit = parentWindow.close()
+  @ObjCAction public fun closeWindow(sender: NSObject?) {
+    parentWindow.close()
+  }
 
-  @ObjCAction public fun openGitHub(sender: platform.darwin.NSObject?) {
+  @ObjCAction public fun openGitHub(sender: NSObject?) {
     NSWorkspace.sharedWorkspace.openURL(Constants.AppInfo.repo)
   }
 
-  @ObjCAction public fun openWebsite(sender: platform.darwin.NSObject?) {
+  @ObjCAction public fun openWebsite(sender: NSObject?) {
     NSWorkspace.sharedWorkspace.openURL(Constants.AppInfo.website)
   }
 
-  @ObjCAction public fun toggleLaunchAtLogin(sender: platform.darwin.NSObject?) {
+  @ObjCAction public fun toggleLaunchAtLogin(sender: NSObject?) {
     val service = SMAppService.mainAppService
-    if (launchAtLoginCheckbox.state == 1L) service.registerAndReturnError(null)
-    else service.unregisterAndReturnError(null)
+
+    if (launchAtLoginCheckbox.state == 1L)
+      service.registerAndReturnError(null)
+    else
+      service.unregisterAndReturnError(null)
   }
 
-  @ObjCAction public fun checkPermissions(sender: platform.darwin.NSObject?) {
+  @ObjCAction public fun checkPermissions(sender: NSObject?) {
     val consent = promptUserForConsent(Constants.AppleMusic.bundleID)
     val alert = NSAlert()
     when (consent) {
-      PermissionStatus.CLOSED -> {
+      CLOSED -> {
         alert.messageText = "${Constants.AppleMusic.name} is not open"
         alert.informativeText = "Please open ${Constants.AppleMusic.name} to enable permissions"
       }
-      PermissionStatus.GRANTED -> {
+      GRANTED -> {
         alert.messageText = "Permission granted for ${Constants.AppleMusic.name}"
         alert.informativeText = "Start playing a song!"
       }
-      PermissionStatus.NOT_PROMPTED -> return
-      PermissionStatus.DENIED -> {
+      DENIED -> {
         alert.messageText = "Permission denied"
-        alert.informativeText = "Please go to System Settings > Privacy & Security > Automation, and check ${Constants.AppleMusic.name} under Jukebox.kt"
+        alert.informativeText =
+          "Please go to System Settings > Privacy & Security > Automation, " +
+            "and check ${Constants.AppleMusic.name} under Jukebox.kt"
       }
+      NOT_PROMPTED -> return
     }
     alert.addButtonWithTitle("Got it!")
     alert.runModal()
   }
-
 }

@@ -19,10 +19,7 @@ import platform.MetalKit.MTKView
 import platform.MetalKit.MTKViewDelegateProtocol
 import platform.darwin.NSObject
 
-public class AlbumWarpRenderer(
-  private val mtkView: MTKView,
-) : NSObject(), MTKViewDelegateProtocol {
-
+public class AlbumWarpRenderer(private val mtkView: MTKView) : NSObject(), MTKViewDelegateProtocol {
   private val timeStep = 1.0f / 30.0f
   private var time = 0.0f
 
@@ -51,11 +48,11 @@ public class AlbumWarpRenderer(
   private fun createComputePipelineState() {
     val library = device?.newDefaultLibrary() ?: return
     val function = library.newFunctionWithName("albumWarp") ?: return
-    computePipelineState = try {
+
+    computePipelineState = runCatching {
       device?.newComputePipelineStateWithFunction(function, error = null)
-    } catch (_: Exception) {
-      null
     }
+      .getOrNull()
   }
 
   public fun updateAlbumArt(image: NSImage?) {
@@ -65,11 +62,12 @@ public class AlbumWarpRenderer(
       return
     }
     val tiffData = image.TIFFRepresentation ?: return
-    inputTexture = try {
+
+    inputTexture = runCatching {
       textureLoader?.newTextureWithData(tiffData, options = null, error = null)
-    } catch (_: Exception) {
-      null
     }
+      .getOrNull()
+
     if (inputTexture != null) {
       mtkView.setPaused(false)
     }
@@ -100,15 +98,16 @@ public class AlbumWarpRenderer(
 
     val w = pipelineState.threadExecutionWidth.toInt()
     val h = (pipelineState.maxTotalThreadsPerThreadgroup / pipelineState.threadExecutionWidth).toInt()
-    val threadGroupCount = MTLSizeMake(w.toULong(), h.toULong(), 1uL)
+    val threadGroupCount = MTLSizeMake(w.toULong(), h.toULong(), depth = 1uL)
     val threadGroups = MTLSizeMake(
       ((outputTexture.width.toInt() + w - 1) / w).toULong(),
       ((outputTexture.height.toInt() + h - 1) / h).toULong(),
-      1uL,
+      depth = 1uL,
     )
 
     encoder.dispatchThreadgroups(threadGroups, threadsPerThreadgroup = threadGroupCount)
     encoder.endEncoding()
+
     commandBuffer.presentDrawable(drawable)
     commandBuffer.commit()
   }
